@@ -1,0 +1,13 @@
+{
+  // Keep markdown feedback practical and low-noise for technical repositories.
+  "config": {
+    "default": true,
+    "MD013": false,
+    "MD024": {
+      "siblings_only": true
+    }
+  },
+  "ignores": [
+    ".venv/**"
+  ]
+}

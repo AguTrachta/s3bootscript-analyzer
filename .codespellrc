@@ -1,0 +1,4 @@
+[codespell]
+skip = .git,.mypy_cache,.pytest_cache,.ruff_cache,.venv,__pycache__,docs,poetry.lock
+check-hidden = true
+quiet-level = 2
