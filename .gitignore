@@ -1,0 +1,54 @@
+# Python bytecode and caches
+__pycache__/
+*.py[cod]
+*$py.class
+
+# Build and packaging artifacts
+build/
+dist/
+site/
+*.egg-info/
+.eggs/
+pip-wheel-metadata/
+
+# Virtual environments
+.venv/
+venv/
+env/
+ENV/
+
+# Poetry
+poetry.toml
+
+# Test, coverage, and analysis caches
+.coverage
+.coverage.*
+coverage.xml
+htmlcov/
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+.hypothesis/
+.pyre/
+.tox/
+.nox/
+
+# Security and quality tool outputs
+.bandit
+bandit-report.json
+.pylint.d/
+
+# Notebook and interactive shells
+.ipynb_checkpoints/
+
+# Environment and local configuration
+.env
+.env.*
+*.local
+
+# Editor and IDE files
+.idea/
+.vscode/
+*.swp
+*.swo
+*~
