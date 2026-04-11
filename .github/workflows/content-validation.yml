@@ -28,7 +28,7 @@ jobs:
         run: python -m pip install --upgrade pip poetry
 
       - name: Install dependencies
-        run: poetry install --no-interaction
+        run: poetry install --only dev --no-interaction
 
       - name: Install markdownlint-cli2
         run: npm install --global markdownlint-cli2
@@ -46,4 +46,4 @@ jobs:
         run: poetry run yamale -s schemas/profile.schema.yaml profiles
 
       - name: Run markdownlint
-        run: poetry run markdownlint-cli2 "**/*.md"
+        run: npx markdownlint-cli2 "**/*.md"
