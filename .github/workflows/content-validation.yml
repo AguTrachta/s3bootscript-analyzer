@@ -1,8 +1,10 @@
 name: Content Validation
 
 on:
-  push:
   pull_request:
+    branches:
+      - develop
+      - main
 
 jobs:
   content-validation:
