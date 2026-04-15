@@ -8,7 +8,7 @@ readme = "README.md"
 packages = [{ include = "s3bootscript_analyzer", from = "src" }]
 
 [tool.poetry.dependencies]
-python = ">=3.12,<3.13"
+python = "=3.12"
 
 [tool.poetry.group.dev.dependencies]
 bandit = ">=1.7,<2.0"
@@ -76,7 +76,7 @@ max-args = 6
 max-attributes = 10
 max-bool-expr = 5
 max-branches = 12
-max-locals = 12
+max-locals = 6
 max-parents = 7
 max-returns = 6
 max-statements = 40
