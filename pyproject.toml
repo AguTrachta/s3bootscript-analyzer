@@ -1,0 +1,93 @@
+[tool.poetry]
+name = "s3bootscript-analyzer"
+version = "0.1.0"
+description = "Static analysis tooling for UEFI S3 Boot Script binaries."
+authors = ["s3bootscript-analyzer maintainers <maintainers@example.com>"]
+license = "MIT"
+readme = "README.md"
+packages = [{ include = "s3bootscript_analyzer", from = "src" }]
+
+[tool.poetry.dependencies]
+python = ">=3.12,<3.13"
+
+[tool.poetry.group.dev.dependencies]
+bandit = ">=1.7,<2.0"
+codespell = ">=2.3,<3.0"
+mypy = ">=1.10,<2.0"
+pylint = ">=3.2,<4.0"
+pytest = ">=8.2,<9.0"
+radon = ">=6.0,<7.0"
+ruff = ">=0.4,<1.0"
+yamale = ">=5.2,<6.0"
+yamllint = ">=1.35,<2.0"
+yapf = ">=0.40,<1.0"
+
+[tool.mypy]
+python_version = "3.12"
+strict = true
+files = ["src", "tests"]
+mypy_path = "src"
+namespace_packages = true
+explicit_package_bases = true
+warn_unreachable = true
+pretty = true
+
+[tool.ruff]
+target-version = "py312"
+line-length = 100
+src = ["src", "tests"]
+
+[tool.ruff.lint]
+select = ["E", "F", "W", "I", "N", "UP", "B", "C4", "SIM", "ARG", "ANN", "PIE", "RET"]
+ignore = ["ANN401"]
+
+[tool.ruff.lint.per-file-ignores]
+"tests/**/*.py" = ["ARG001"]
+
+[tool.ruff.lint.isort]
+known-first-party = ["s3bootscript_analyzer"]
+
+[tool.pylint.main]
+py-version = "3.12"
+jobs = 0
+source-roots = ["src"]
+ignore-paths = [
+  "^docs/",
+  "^profiles/",
+  "^rules/",
+  "^schemas/",
+  "^templates/",
+]
+
+[tool.pylint."messages control"]
+disable = [
+  "duplicate-code",
+  "missing-class-docstring",
+  "missing-function-docstring",
+  "missing-module-docstring",
+  "too-few-public-methods",
+]
+
+[tool.pylint.format]
+max-line-length = 100
+
+[tool.pylint.design]
+max-args = 6
+max-attributes = 10
+max-bool-expr = 5
+max-branches = 12
+max-locals = 6
+max-parents = 7
+max-returns = 6
+max-statements = 40
+
+[tool.pylint.basic]
+good-names = ["_", "ex", "fd", "fp", "i", "j"]
+
+[tool.pytest.ini_options]
+addopts = "-ra"
+testpaths = ["tests"]
+
+[build-system]
+requires = ["poetry-core>=1.9.0"]
+build-backend = "poetry.core.masonry.api"
