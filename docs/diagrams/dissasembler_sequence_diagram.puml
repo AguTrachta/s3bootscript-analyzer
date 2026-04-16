@@ -7,52 +7,47 @@ skinparam sequenceMessageAlign center
 skinparam responseMessageBelowArrow true
 
 actor User
-participant "BootScriptDisassembler" as Disassembler
+participant "DisassembleBootScriptUseCase" as UseCase
 participant "FileLoader" as FileLoader
 participant "KaitaiBootScriptRawParser" as RawParser
-participant "RawBootScript" as RawBootScript
+participant "BootScriptOpcodeDecoder" as ScriptDecoder
 participant "OpcodeDecoderRegistry" as Registry
-participant "BootScriptDocument" as Document
-participant "TextIrDocumentRenderer" as Renderer
+participant "Concrete OpcodeDecoder" as ConcreteDecoder
 
-User -> Disassembler : disassemble(path)
+User -> UseCase : execute(path)
 
-Disassembler -> FileLoader : load(path)
-FileLoader --> Disassembler : BinarySource
+UseCase -> FileLoader : load(path)
+FileLoader --> UseCase : BinarySource
 
-Disassembler -> RawParser : parse(source)
+UseCase -> RawParser : parse(source)
 note right of RawParser
   Uses Python code
   generated from the .ksy
 end note
-RawParser --> Disassembler : RawBootScript
+RawParser --> UseCase : RawBootScript
 
-create Document
-Disassembler -> Document : <<create>>
-note right of Document
-  Document instantiation
-  to contain header + opcodes
-end note
+UseCase -> ScriptDecoder : decode_header(raw_script.table_header)
+ScriptDecoder --> UseCase : header_text
 
-loop for each raw record
-  Disassembler -> RawBootScript : get next record
-  RawBootScript --> Disassembler : RawOpcodeRecord
+UseCase -> ScriptDecoder : decode_all(raw_script)
 
-  Disassembler -> Registry : decode(record)
+loop for each RawOpcodeRecord
+  ScriptDecoder -> Registry : decode(record)
+  Registry -> Registry : lookup(record.opcode_id)
 
   alt supported opcode
-    Registry --> Disassembler : OpcodeNode
+    Registry -> ConcreteDecoder : decode(record)
+    ConcreteDecoder --> Registry : opcode_text
+    Registry --> ScriptDecoder : opcode_text
   else unsupported / malformed opcode
-    Registry --> Disassembler : UnknownOpcode
+    Registry -> ConcreteDecoder : decode(record)\n(UnknownOpcodeDecoder)
+    ConcreteDecoder --> Registry : opcode_text
+    Registry --> ScriptDecoder : opcode_text
   end
-
-  Disassembler -> Document : add_opcode(opcode)
 end
 
-opt render text IR
-  Disassembler -> Renderer : render(Document)
-  Renderer --> Disassembler : str
-end
+ScriptDecoder --> UseCase : decoded_opcodes_text
 
-Disassembler --> User : BootScriptDocument / text IR
+UseCase -> UseCase : join(header_text, decoded_opcodes_text)
+UseCase --> User : text IR
 @enduml
