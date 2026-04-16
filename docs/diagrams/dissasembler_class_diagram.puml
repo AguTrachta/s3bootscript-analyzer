@@ -1,0 +1,268 @@
+@startuml
+title Class Diagram - Boot Script Disassembler
+
+skinparam classAttributeIconSize 0
+skinparam shadowing false
+skinparam linetype ortho
+
+package "ingestion" {
+  class BinarySource {
+    +path: str
+    +data: bytes
+    +size(): int
+  }
+
+  class FileLoader {
+    +load(path: str): BinarySource
+  }
+}
+
+package "parsing.raw" {
+  interface BootScriptRawParser {
+    +parse(source: BinarySource): RawBootScript
+  }
+
+  class KaitaiBootScriptRawParser {
+    +parse(source: BinarySource): RawBootScript
+  }
+
+  class RawBootScript {
+    +table_header: RawTableHeader
+    +records: list[RawOpcodeRecord]
+    +has_errors(): bool
+  }
+
+  class RawTableHeader {
+    +opcode_id: int
+    +length: int
+    +version: int
+    +table_length: int
+  }
+
+  class RawOpcodeRecord {
+    +opcode_id: int
+    +length: int
+    +offset: int
+    +body: object
+    +raw_bytes: bytes
+    +payload_size(): int
+  }
+}
+
+package "domain.model" {
+  class BootScriptDocument {
+    +header: TableHeader
+    +opcodes: list[OpcodeNode]
+    +add_opcode(opcode: OpcodeNode): None
+  }
+
+  class TableHeader {
+    +version: int
+    +table_length: int
+  }
+
+  abstract class OpcodeNode {
+    +opcode_id: int
+    +opcode_name: OpcodeName
+    +field_items(): list
+  }
+
+  abstract class WriteOpcodeNode {
+    +width: Width
+    +address: int
+    +count: int
+    +values: list[int]
+  }
+
+  abstract class ReadWriteOpcodeNode {
+    +width: Width
+    +address: int
+    +data: int
+    +data_mask: int
+  }
+
+  abstract class PollOpcodeNode {
+    +width: Width
+    +address: int
+    +data: int
+    +data_mask: int
+  }
+
+  abstract class TimedPollOpcodeNode {
+    +delay: int
+  }
+
+  class WriteOpcodeVariants <<group>> {
+    IoWriteOpcode
+    MemWriteOpcode
+    PciConfigWriteOpcode
+    PciConfig2WriteOpcode (+segment)
+  }
+
+  class ReadWriteOpcodeVariants <<group>> {
+    IoReadWriteOpcode
+    MemReadWriteOpcode
+    PciConfigReadWriteOpcode
+    PciConfig2ReadWriteOpcode (+segment)
+  }
+
+  class PollOpcodeVariants <<group>> {
+    IoPollOpcode (+delay)
+    MemPollOpcode (+duration, +loop_times)
+    PciConfigPollOpcode (+delay)
+    PciConfig2PollOpcode (+segment, +delay)
+  }
+
+  class OtherOpcodeVariants <<group>> {
+    SmbusExecuteOpcode
+    StallOpcode
+    DispatchOpcode
+    Dispatch2Opcode
+    InformationOpcode
+    UnknownOpcode
+  }
+
+  enum Width {
+    UINT8
+    UINT16
+    UINT32
+    UINT64
+    FIFO_UINT8
+    FIFO_UINT16
+    FIFO_UINT32
+    FIFO_UINT64
+    FILL_UINT8
+    FILL_UINT16
+    FILL_UINT32
+    FILL_UINT64
+  }
+
+  enum OpcodeName {
+    IO_WRITE
+    IO_READ_WRITE
+    MEM_WRITE
+    MEM_READ_WRITE
+    PCI_CONFIG_WRITE
+    PCI_CONFIG_READ_WRITE
+    SMBUS_EXECUTE
+    STALL
+    DISPATCH
+    DISPATCH_2
+    INFORMATION
+    PCI_CONFIG2_WRITE
+    PCI_CONFIG2_READ_WRITE
+    IO_POLL
+    MEM_POLL
+    PCI_CONFIG_POLL
+    PCI_CONFIG2_POLL
+    UNKNOWN
+  }
+}
+
+package "decoding" {
+  interface OpcodeDecoder {
+    +decode(record: RawOpcodeRecord): OpcodeNode
+  }
+
+  class OpcodeDecoderRegistry {
+    +register(opcode_id: int, decoder: OpcodeDecoder): None
+    +decode(record: RawOpcodeRecord): OpcodeNode
+  }
+
+  class WriteOpcodeDecoders <<group>> {
+    IoWriteDecoder
+    MemWriteDecoder
+    PciConfigWriteDecoder
+    PciConfig2WriteDecoder
+  }
+
+  class ReadWriteOpcodeDecoders <<group>> {
+    IoReadWriteDecoder
+    MemReadWriteDecoder
+    PciConfigReadWriteDecoder
+    PciConfig2ReadWriteDecoder
+  }
+
+  class PollOpcodeDecoders <<group>> {
+    IoPollDecoder
+    MemPollDecoder
+    PciConfigPollDecoder
+    PciConfig2PollDecoder
+  }
+
+  class OtherOpcodeDecoders <<group>> {
+    SmbusExecuteDecoder
+    StallDecoder
+    DispatchDecoder
+    Dispatch2Decoder
+    InformationDecoder
+    UnknownOpcodeDecoder
+  }
+}
+
+package "presentation.text_ir" {
+  class TextIrDocumentRenderer {
+    +render(document: BootScriptDocument): str
+  }
+}
+
+package "application" {
+  class DisassembleBootScriptUseCase {
+    +execute(path: str): BootScriptDocument
+  }
+}
+
+FileLoader --> BinarySource
+
+BootScriptRawParser <|.. KaitaiBootScriptRawParser
+KaitaiBootScriptRawParser --> RawBootScript
+RawBootScript *-- RawTableHeader
+RawBootScript *-- RawOpcodeRecord
+
+BootScriptDocument *-- TableHeader
+BootScriptDocument *-- OpcodeNode
+
+OpcodeNode <|-- WriteOpcodeNode
+OpcodeNode <|-- ReadWriteOpcodeNode
+OpcodeNode <|-- PollOpcodeNode
+PollOpcodeNode <|-- TimedPollOpcodeNode
+
+WriteOpcodeNode ..> WriteOpcodeVariants : concrete variants
+ReadWriteOpcodeNode ..> ReadWriteOpcodeVariants : concrete variants
+PollOpcodeNode ..> PollOpcodeVariants : concrete variants
+OpcodeNode ..> OtherOpcodeVariants : concrete variants
+
+OpcodeDecoderRegistry --> OpcodeDecoder
+OpcodeDecoderRegistry --> RawOpcodeRecord
+OpcodeDecoderRegistry --> OpcodeNode
+
+OpcodeDecoder ..> WriteOpcodeDecoders : implementations
+OpcodeDecoder ..> ReadWriteOpcodeDecoders : implementations
+OpcodeDecoder ..> PollOpcodeDecoders : implementations
+OpcodeDecoder ..> OtherOpcodeDecoders : implementations
+
+TextIrDocumentRenderer --> BootScriptDocument
+
+DisassembleBootScriptUseCase --> FileLoader
+DisassembleBootScriptUseCase --> BootScriptRawParser
+DisassembleBootScriptUseCase --> OpcodeDecoderRegistry
+DisassembleBootScriptUseCase --> BootScriptDocument
+
+WriteOpcodeNode --> Width
+ReadWriteOpcodeNode --> Width
+PollOpcodeNode --> Width
+OpcodeNode --> OpcodeName
+
+note right of WriteOpcodeVariants
+Grouped for readability.
+Each listed concrete opcode has its own
+domain node class in the implementation.
+end note
+
+note right of WriteOpcodeDecoders
+Grouped for readability.
+Each listed decoder is registered independently
+in OpcodeDecoderRegistry.
+end note
+
+@enduml
