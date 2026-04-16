@@ -1,0 +1,58 @@
+@startuml
+title Sequence Diagram - Boot Script Disassembly Flow
+
+autonumber
+skinparam shadowing false
+skinparam sequenceMessageAlign center
+skinparam responseMessageBelowArrow true
+
+actor User
+participant "BootScriptDisassembler" as Disassembler
+participant "FileLoader" as FileLoader
+participant "KaitaiBootScriptRawParser" as RawParser
+participant "RawBootScript" as RawBootScript
+participant "OpcodeDecoderRegistry" as Registry
+participant "BootScriptDocument" as Document
+participant "TextIrDocumentRenderer" as Renderer
+
+User -> Disassembler : disassemble(path)
+
+Disassembler -> FileLoader : load(path)
+FileLoader --> Disassembler : BinarySource
+
+Disassembler -> RawParser : parse(source)
+note right of RawParser
+  Uses Python code
+  generated from the .ksy
+end note
+RawParser --> Disassembler : RawBootScript
+
+create Document
+Disassembler -> Document : <<create>>
+note right of Document
+  Document instantiation
+  to contain header + opcodes
+end note
+
+loop for each raw record
+  Disassembler -> RawBootScript : get next record
+  RawBootScript --> Disassembler : RawOpcodeRecord
+
+  Disassembler -> Registry : decode(record)
+
+  alt supported opcode
+    Registry --> Disassembler : OpcodeNode
+  else unsupported / malformed opcode
+    Registry --> Disassembler : UnknownOpcode
+  end
+
+  Disassembler -> Document : add_opcode(opcode)
+end
+
+opt render text IR
+  Disassembler -> Renderer : render(Document)
+  Renderer --> Disassembler : str
+end
+
+Disassembler --> User : BootScriptDocument / text IR
+@enduml
