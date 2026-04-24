@@ -33,7 +33,7 @@ UseCase -> ScriptDecoder : decode_all(raw_script)
 
 loop for each RawOpcodeRecord
   ScriptDecoder -> Registry : decode(record)
-  Registry -> Registry : lookup(record.opcode_id)
+  Registry -> Registry : register(record.opcode_id)
 
   alt supported opcode
     Registry -> ConcreteDecoder : decode(record)
@@ -46,8 +46,11 @@ loop for each RawOpcodeRecord
   end
 end
 
-ScriptDecoder --> UseCase : decoded_opcodes_text
+ScriptDecoder --> Renderer : opcode_lines
 
-UseCase -> UseCase : join(header_text, decoded_opcodes_text)
-UseCase --> User : text IR
+Renderer -> Renderer : render_lines(header_text, opcode_lines)
+
+Renderer --> UseCase : IR
+
+UseCase --> User : IR
 @enduml

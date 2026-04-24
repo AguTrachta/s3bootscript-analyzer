@@ -100,6 +100,21 @@ package "application" {
   }
 }
 
+package "reporting" {
+  interface BootScriptRenderer {
+    +render(raw_script: RawBootScript, opcode_decoder: BootScriptOpcodeDecoder): str
+  }
+
+  class TextIrRenderer {
+    +render(raw_script: RawBootScript, opcode_decoder: BootScriptOpcodeDecoder): str
+    +render_lines(header_text: str, opcode_lines: Sequence[str]): str
+  }
+
+  class JsonIrRenderer {
+    +render(raw_script: RawBootScript, opcode_decoder: BootScriptOpcodeDecoder): str
+  }
+}
+
 FileLoader --> BinarySource
 
 BootScriptRawParser <|.. KaitaiBootScriptRawParser
@@ -118,6 +133,10 @@ OpcodeDecoder ..> OtherOpcodeDecoders : implementations
 DisassembleBootScriptUseCase --> FileLoader
 DisassembleBootScriptUseCase --> BootScriptRawParser
 DisassembleBootScriptUseCase --> BootScriptOpcodeDecoder
+DisassembleBootScriptUseCase --> BootScriptRenderer
+
+BootScriptRenderer <|.. TextIrRenderer
+BootScriptRenderer <|.. JsonIrRenderer
 
 BootScriptOpcodeDecoder --> OpcodeDecoderRegistry : delegates per-record decoding
 BootScriptOpcodeDecoder --> RawBootScript
