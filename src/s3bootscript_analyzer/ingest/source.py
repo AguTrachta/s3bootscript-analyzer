@@ -6,7 +6,7 @@ from dataclasses import dataclass
 from pathlib import Path
 
 
-@dataclass(frozen=True)  # the instance remains unchanged after it is created
+@dataclass(frozen=True)
 class BinarySource:
     """Loaded binary input and its origin."""
 
