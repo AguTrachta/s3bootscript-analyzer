@@ -10,6 +10,7 @@ site/
 *.egg-info/
 .eggs/
 pip-wheel-metadata/
+src/s3bootscript_analyzer/parsers/generated/
 
 # Virtual environments
 .venv/
