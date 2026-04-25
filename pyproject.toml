@@ -9,6 +9,10 @@ packages = [{ include = "s3bootscript_analyzer", from = "src" }]
 
 [tool.poetry.dependencies]
 python = ">=3.12,<3.13"
+kaitaistruct = ">=0.11,<0.12"
+
+[tool.poetry.scripts]
+s3bootscript-analyzer = "s3bootscript_analyzer.cli:main"
 
 [tool.poetry.group.dev.dependencies]
 bandit = ">=1.7,<2.0"
@@ -26,16 +30,22 @@ yapf = ">=0.40,<1.0"
 python_version = "3.12"
 strict = true
 files = ["src", "tests"]
+exclude = ["^src/s3bootscript_analyzer/parsers/generated/"]
 mypy_path = "src"
 namespace_packages = true
 explicit_package_bases = true
 warn_unreachable = true
 pretty = true
 
+[[tool.mypy.overrides]]
+module = ["kaitaistruct"]
+ignore_missing_imports = true
+
 [tool.ruff]
 target-version = "py312"
 line-length = 100
 src = ["src", "tests"]
+exclude = ["src/s3bootscript_analyzer/parsers/generated"]
 
 [tool.ruff.lint]
 select = ["E", "F", "W", "I", "N", "UP", "B", "C4", "SIM", "ARG", "ANN", "PIE", "RET"]
@@ -56,6 +66,7 @@ ignore-paths = [
   "^profiles/",
   "^rules/",
   "^schemas/",
+  "^src/s3bootscript_analyzer/parsers/generated/",
   "^templates/",
 ]
 

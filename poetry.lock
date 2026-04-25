@@ -112,6 +112,18 @@ colors = ["colorama"]
 plugins = ["setuptools"]
 
 [[package]]
+name = "kaitaistruct"
+version = "0.11"
+description = "Kaitai Struct declarative parser generator for binary data: runtime library for Python"
+optional = false
+python-versions = "!=3.0.*,!=3.1.*,!=3.2.*,!=3.3.*,>=2.7"
+groups = ["main"]
+files = [
+    {file = "kaitaistruct-0.11-py2.py3-none-any.whl", hash = "sha256:5c6ce79177b4e193a577ecd359e26516d1d6d000a0bffd6e1010f2a46a62a561"},
+    {file = "kaitaistruct-0.11.tar.gz", hash = "sha256:053ee764288e78b8e53acf748e9733268acbd579b8d82a427b1805453625d74b"},
+]
+
+[[package]]
 name = "librt"
 version = "0.9.0"
 description = "Mypyc runtime library"
@@ -727,4 +739,4 @@ platformdirs = ">=3.5.1"
 [metadata]
 lock-version = "2.1"
 python-versions = ">=3.12,<3.13"
-content-hash = "900e5adae9683a0fcc9bf649d7d3d07093becfad58568d09af4c849adea291fc"
+content-hash = "046c3c6632af1dfdf4610baa3cb6d2702737fcb1512caebcb499b56abdddc22b"
