@@ -24,17 +24,7 @@ class OpcodeDecoder(Protocol):
         raise NotImplementedError
 
 
-@dataclass(frozen=True)
-class FieldSpec:
-    """A field read from a generated Kaitai body."""
-
-    name: str
-
-    def render(self, body: object) -> str:
-        return format_field(self.name, self.format_value(body))
-
-    def format_value(self, body: object) -> str:
-        return format_value(_body_field(body, self.name))
+FieldNames = tuple[str, ...]
 
 
 @dataclass(frozen=True)
@@ -43,23 +33,25 @@ class OpcodeMetadata:
 
     opcode_id: int
     mnemonic: str
-    fields: tuple[FieldSpec, ...]
+    fields: FieldNames
 
 
 class StructuredOpcodeDecoder:
     """Data-driven decoder for opcodes with simple field output."""
 
-    def __init__(self, mnemonic: str, fields: tuple[FieldSpec, ...]) -> None:
+    def __init__(self, mnemonic: str, fields: FieldNames) -> None:
         self._mnemonic = mnemonic
         self._fields = fields
 
     def decode(self, record: RawOpcodeRecord, verbose: bool = False) -> str:
-        fields = " ".join(field.render(record.body) for field in self._fields)
+        fields = " ".join(render_field(record.body, field) for field in self._fields)
         return _join_record_text(record, self._mnemonic, fields, verbose)
 
 
 class IoWriteDecoder(StructuredOpcodeDecoder):
     """Decode IO write records."""
+
+    opcode_id = OpcodeId.IO_WRITE
 
     def __init__(self) -> None:
         super().__init__("IO_WRITE", WRITE_FIELDS)
@@ -68,12 +60,16 @@ class IoWriteDecoder(StructuredOpcodeDecoder):
 class MemWriteDecoder(StructuredOpcodeDecoder):
     """Decode memory write records."""
 
+    opcode_id = OpcodeId.MEM_WRITE
+
     def __init__(self) -> None:
         super().__init__("MEM_WRITE", WRITE_FIELDS)
 
 
 class PciConfigWriteDecoder(StructuredOpcodeDecoder):
     """Decode PCI config write records."""
+
+    opcode_id = OpcodeId.PCI_CONFIG_WRITE
 
     def __init__(self) -> None:
         super().__init__("PCI_CONFIG_WRITE", WRITE_FIELDS)
@@ -82,12 +78,16 @@ class PciConfigWriteDecoder(StructuredOpcodeDecoder):
 class PciConfig2WriteDecoder(StructuredOpcodeDecoder):
     """Decode PCI config 2 write records."""
 
+    opcode_id = OpcodeId.PCI_CONFIG2_WRITE
+
     def __init__(self) -> None:
         super().__init__("PCI_CONFIG2_WRITE", SEGMENTED_WRITE_FIELDS)
 
 
 class IoReadWriteDecoder(StructuredOpcodeDecoder):
     """Decode IO read-write records."""
+
+    opcode_id = OpcodeId.IO_READ_WRITE
 
     def __init__(self) -> None:
         super().__init__("IO_READ_WRITE", READ_WRITE_FIELDS)
@@ -96,12 +96,16 @@ class IoReadWriteDecoder(StructuredOpcodeDecoder):
 class MemReadWriteDecoder(StructuredOpcodeDecoder):
     """Decode memory read-write records."""
 
+    opcode_id = OpcodeId.MEM_READ_WRITE
+
     def __init__(self) -> None:
         super().__init__("MEM_READ_WRITE", READ_WRITE_FIELDS)
 
 
 class PciConfigReadWriteDecoder(StructuredOpcodeDecoder):
     """Decode PCI config read-write records."""
+
+    opcode_id = OpcodeId.PCI_CONFIG_READ_WRITE
 
     def __init__(self) -> None:
         super().__init__("PCI_CONFIG_READ_WRITE", READ_WRITE_FIELDS)
@@ -110,12 +114,16 @@ class PciConfigReadWriteDecoder(StructuredOpcodeDecoder):
 class PciConfig2ReadWriteDecoder(StructuredOpcodeDecoder):
     """Decode PCI config 2 read-write records."""
 
+    opcode_id = OpcodeId.PCI_CONFIG2_READ_WRITE
+
     def __init__(self) -> None:
         super().__init__("PCI_CONFIG2_READ_WRITE", SEGMENTED_READ_WRITE_FIELDS)
 
 
 class IoPollDecoder(StructuredOpcodeDecoder):
     """Decode IO poll records."""
+
+    opcode_id = OpcodeId.IO_POLL
 
     def __init__(self) -> None:
         super().__init__("IO_POLL", POLL_FIELDS)
@@ -124,12 +132,16 @@ class IoPollDecoder(StructuredOpcodeDecoder):
 class MemPollDecoder(StructuredOpcodeDecoder):
     """Decode memory poll records."""
 
+    opcode_id = OpcodeId.MEM_POLL
+
     def __init__(self) -> None:
         super().__init__("MEM_POLL", MEM_POLL_FIELDS)
 
 
 class PciConfigPollDecoder(StructuredOpcodeDecoder):
     """Decode PCI config poll records."""
+
+    opcode_id = OpcodeId.PCI_CONFIG_POLL
 
     def __init__(self) -> None:
         super().__init__("PCI_CONFIG_POLL", POLL_FIELDS)
@@ -138,12 +150,16 @@ class PciConfigPollDecoder(StructuredOpcodeDecoder):
 class PciConfig2PollDecoder(StructuredOpcodeDecoder):
     """Decode PCI config 2 poll records."""
 
+    opcode_id = OpcodeId.PCI_CONFIG2_POLL
+
     def __init__(self) -> None:
         super().__init__("PCI_CONFIG2_POLL", SEGMENTED_POLL_FIELDS)
 
 
 class SmbusExecuteDecoder(StructuredOpcodeDecoder):
     """Decode SMBus execute records."""
+
+    opcode_id = OpcodeId.SMBUS_EXECUTE
 
     def __init__(self) -> None:
         super().__init__("SMBUS_EXECUTE", SMBUS_FIELDS)
@@ -152,12 +168,16 @@ class SmbusExecuteDecoder(StructuredOpcodeDecoder):
 class StallDecoder(StructuredOpcodeDecoder):
     """Decode stall records."""
 
+    opcode_id = OpcodeId.STALL
+
     def __init__(self) -> None:
         super().__init__("STALL", STALL_FIELDS)
 
 
 class DispatchDecoder(StructuredOpcodeDecoder):
     """Decode dispatch records."""
+
+    opcode_id = OpcodeId.DISPATCH
 
     def __init__(self) -> None:
         super().__init__("DISPATCH", DISPATCH_FIELDS)
@@ -166,6 +186,8 @@ class DispatchDecoder(StructuredOpcodeDecoder):
 class Dispatch2Decoder(StructuredOpcodeDecoder):
     """Decode dispatch 2 records."""
 
+    opcode_id = OpcodeId.DISPATCH_2
+
     def __init__(self) -> None:
         super().__init__("DISPATCH_2", DISPATCH_2_FIELDS)
 
@@ -173,12 +195,16 @@ class Dispatch2Decoder(StructuredOpcodeDecoder):
 class InformationDecoder(StructuredOpcodeDecoder):
     """Decode information records."""
 
+    opcode_id = OpcodeId.INFORMATION
+
     def __init__(self) -> None:
         super().__init__("INFORMATION", INFORMATION_FIELDS)
 
 
 class TerminateDecoder(StructuredOpcodeDecoder):
     """Decode terminate records."""
+
+    opcode_id = OpcodeId.TERMINATE
 
     def __init__(self) -> None:
         super().__init__("TERMINATE", EMPTY_FIELDS)
@@ -200,63 +226,49 @@ def _body_field(body: object, name: str) -> object:
     return cast(object, getattr(body, name, MISSING_FIELD))
 
 
+def render_field(body: object, name: str) -> str:
+    return format_field(name, format_value(_body_field(body, name)))
+
+
 def _join_record_text(record: RawOpcodeRecord, mnemonic: str, fields: str, verbose: bool) -> str:
     return " ".join(
         part for part in (format_record_prefix(record, mnemonic, verbose), fields) if part
     )
 
 
-FIELD_WIDTH = FieldSpec("width")
-FIELD_COUNT = FieldSpec("count")
-FIELD_ADDRESS = FieldSpec("address")
-FIELD_SEGMENT = FieldSpec("segment")
-FIELD_BUFFER = FieldSpec("buffer")
-FIELD_DATA = FieldSpec("data")
-FIELD_DATA_MASK = FieldSpec("data_mask")
-FIELD_DELAY = FieldSpec("delay")
-FIELD_DURATION = FieldSpec("duration")
-FIELD_LOOP_TIMES = FieldSpec("loop_times")
-FIELD_ENTRY_POINT = FieldSpec("entry_point")
-FIELD_CONTEXT = FieldSpec("context")
-FIELD_INFORMATION_LENGTH = FieldSpec("information_length")
-FIELD_INFORMATION_DATA = FieldSpec("information_data")
-FIELD_SM_BUS_ADDRESS = FieldSpec("sm_bus_address")
-FIELD_OPERATION = FieldSpec("operation")
-FIELD_DATA_SIZE = FieldSpec("data_size")
-
-EMPTY_FIELDS: tuple[FieldSpec, ...] = ()
-WRITE_FIELDS = (FIELD_WIDTH, FIELD_COUNT, FIELD_ADDRESS, FIELD_BUFFER)
-SEGMENTED_WRITE_FIELDS = (FIELD_WIDTH, FIELD_COUNT, FIELD_ADDRESS, FIELD_SEGMENT, FIELD_BUFFER)
-READ_WRITE_FIELDS = (FIELD_WIDTH, FIELD_ADDRESS, FIELD_DATA, FIELD_DATA_MASK)
+EMPTY_FIELDS: FieldNames = ()
+WRITE_FIELDS: FieldNames = ("width", "count", "address", "buffer")
+SEGMENTED_WRITE_FIELDS: FieldNames = ("width", "count", "address", "segment", "buffer")
+READ_WRITE_FIELDS: FieldNames = ("width", "address", "data", "data_mask")
 SEGMENTED_READ_WRITE_FIELDS = (
-    FIELD_WIDTH,
-    FIELD_ADDRESS,
-    FIELD_SEGMENT,
-    FIELD_DATA,
-    FIELD_DATA_MASK,
+    "width",
+    "address",
+    "segment",
+    "data",
+    "data_mask",
 )
-POLL_FIELDS = (FIELD_WIDTH, FIELD_ADDRESS, FIELD_DELAY, FIELD_DATA, FIELD_DATA_MASK)
+POLL_FIELDS: FieldNames = ("width", "address", "delay", "data", "data_mask")
 MEM_POLL_FIELDS = (
-    FIELD_WIDTH,
-    FIELD_ADDRESS,
-    FIELD_DURATION,
-    FIELD_LOOP_TIMES,
-    FIELD_DATA,
-    FIELD_DATA_MASK,
+    "width",
+    "address",
+    "duration",
+    "loop_times",
+    "data",
+    "data_mask",
 )
 SEGMENTED_POLL_FIELDS = (
-    FIELD_WIDTH,
-    FIELD_ADDRESS,
-    FIELD_SEGMENT,
-    FIELD_DELAY,
-    FIELD_DATA,
-    FIELD_DATA_MASK,
+    "width",
+    "address",
+    "segment",
+    "delay",
+    "data",
+    "data_mask",
 )
-SMBUS_FIELDS = (FIELD_SM_BUS_ADDRESS, FIELD_OPERATION, FIELD_DATA_SIZE, FIELD_BUFFER)
-STALL_FIELDS = (FIELD_DURATION, )
-DISPATCH_FIELDS = (FIELD_ENTRY_POINT, )
-DISPATCH_2_FIELDS = (FIELD_ENTRY_POINT, FIELD_CONTEXT)
-INFORMATION_FIELDS = (FIELD_INFORMATION_LENGTH, FIELD_INFORMATION_DATA)
+SMBUS_FIELDS: FieldNames = ("sm_bus_address", "operation", "data_size", "buffer")
+STALL_FIELDS: FieldNames = ("duration", )
+DISPATCH_FIELDS: FieldNames = ("entry_point", )
+DISPATCH_2_FIELDS: FieldNames = ("entry_point", "context")
+INFORMATION_FIELDS: FieldNames = ("information_length", "information_data")
 
 UNKNOWN_MNEMONIC = "UNKNOWN"
 
@@ -292,6 +304,6 @@ def get_opcode_mnemonic(opcode_id: int) -> str:
     return metadata.mnemonic if metadata is not None else UNKNOWN_MNEMONIC
 
 
-def get_opcode_fields(opcode_id: int) -> tuple[FieldSpec, ...]:
+def get_opcode_fields(opcode_id: int) -> FieldNames:
     metadata = OPCODE_METADATA_BY_ID.get(opcode_id)
     return metadata.fields if metadata is not None else EMPTY_FIELDS
