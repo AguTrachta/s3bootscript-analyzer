@@ -62,7 +62,7 @@ DEFAULT_DECODER_FACTORIES: tuple[DecoderFactory, ...] = (
 def build_default_registry() -> OpcodeDecoderRegistry:
     registry = OpcodeDecoderRegistry()
     for decoder_factory in DEFAULT_DECODER_FACTORIES:
-        registry.register(int(decoder_factory.opcode_id), decoder_factory())
+        registry.register(decoder_factory.opcode_id, decoder_factory())
     return registry
 
 
