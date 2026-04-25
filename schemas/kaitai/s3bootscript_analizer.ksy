@@ -24,7 +24,7 @@ types:
             opcode_enum::io_write: io_write
             opcode_enum::io_read_write: io_read_write
             opcode_enum::mem_write: mem_write
-            opcode_enum::mem_read_write: mem_read_write    
+            opcode_enum::mem_read_write: mem_read_write
             opcode_enum::pci_config_write: pci_config_write
             opcode_enum::pci_config_read_write: pci_config_read_write
             opcode_enum::smbus_execute: smbus_execute
@@ -39,8 +39,8 @@ types:
             opcode_enum::pci_config_poll: pci_config_poll
             opcode_enum::pci_config2_poll: pci_config2_poll
             opcode_enum::terminate: terminate
-            
-  header: 
+
+  header:
     seq:
       - id: version
         type: u2
@@ -50,7 +50,7 @@ types:
         type: u2
       - id: reserved1
         type: u2
-  
+
   io_write:
     seq:
       - id: width
@@ -62,24 +62,11 @@ types:
         type: u8
       - id: buffer
         size: width_size * count
-        
-    instances:
+
+    instances: &width_size_instance
       width_size:
-        value: |
-          width == width_enum::uint8 or
-          width == width_enum::fifo_uint8 or
-          width == width_enum::fill_uint8 ? 1 :
-          width == width_enum::uint16 or
-          width == width_enum::fifo_uint16 or
-          width == width_enum::fill_uint16 ? 2 :
-          width == width_enum::uint32 or
-          width == width_enum::fifo_uint32 or
-          width == width_enum::fill_uint32 ? 4 :
-          width == width_enum::uint64 or
-          width == width_enum::fifo_uint64 or
-          width == width_enum::fill_uint64 ? 8 :
-          0
-    
+        value: 1 << (width.to_i % 4)
+
   io_read_write:
     seq:
       - id: width
@@ -92,52 +79,22 @@ types:
       - id: data_mask
         size: width_size
 
-    instances:
-      width_size:
-        value: |
-          width == width_enum::uint8 or
-          width == width_enum::fifo_uint8 or
-          width == width_enum::fill_uint8 ? 1 :
-          width == width_enum::uint16 or
-          width == width_enum::fifo_uint16 or
-          width == width_enum::fill_uint16 ? 2 :
-          width == width_enum::uint32 or
-          width == width_enum::fifo_uint32 or
-          width == width_enum::fill_uint32 ? 4 :
-          width == width_enum::uint64 or
-          width == width_enum::fifo_uint64 or
-          width == width_enum::fill_uint64 ? 8 :
-          0
-        
+    instances: *width_size_instance
+
   mem_write:
     seq:
-    - id: width
-      type: u4
-      enum: width_enum
-    - id: count
-      type: u4
-    - id: address
-      type: u8
-    - id: buffer
-      size: width_size * count
-      
-    instances:
-      width_size:
-        value: |
-          width == width_enum::uint8 or
-          width == width_enum::fifo_uint8 or
-          width == width_enum::fill_uint8 ? 1 :
-          width == width_enum::uint16 or
-          width == width_enum::fifo_uint16 or
-          width == width_enum::fill_uint16 ? 2 :
-          width == width_enum::uint32 or
-          width == width_enum::fifo_uint32 or
-          width == width_enum::fill_uint32 ? 4 :
-          width == width_enum::uint64 or
-          width == width_enum::fifo_uint64 or
-          width == width_enum::fill_uint64 ? 8 :
-          0
-    
+      - id: width
+        type: u4
+        enum: width_enum
+      - id: count
+        type: u4
+      - id: address
+        type: u8
+      - id: buffer
+        size: width_size * count
+
+    instances: *width_size_instance
+
   mem_read_write:
     seq:
       - id: width
@@ -150,83 +107,22 @@ types:
       - id: data_mask
         size: width_size
 
-    instances:
-      width_size:
-        value: |
-          width == width_enum::uint8 or
-          width == width_enum::fifo_uint8 or
-          width == width_enum::fill_uint8 ? 1 :
-          width == width_enum::uint16 or
-          width == width_enum::fifo_uint16 or
-          width == width_enum::fill_uint16 ? 2 :
-          width == width_enum::uint32 or
-          width == width_enum::fifo_uint32 or
-          width == width_enum::fill_uint32 ? 4 :
-          width == width_enum::uint64 or
-          width == width_enum::fifo_uint64 or
-          width == width_enum::fill_uint64 ? 8 :
-          0
-        
+    instances: *width_size_instance
+
   pci_config_write:
     seq:
-    - id: width
-      type: u4
-      enum: width_enum
-    - id: count
-      type: u4
-    - id: address
-      type: u8
-    - id: buffer
-      size: width_size * count
-      
-    instances:
-      width_size:
-        value: |
-          width == width_enum::uint8 or
-          width == width_enum::fifo_uint8 or
-          width == width_enum::fill_uint8 ? 1 :
-          width == width_enum::uint16 or
-          width == width_enum::fifo_uint16 or
-          width == width_enum::fill_uint16 ? 2 :
-          width == width_enum::uint32 or
-          width == width_enum::fifo_uint32 or
-          width == width_enum::fill_uint32 ? 4 :
-          width == width_enum::uint64 or
-          width == width_enum::fifo_uint64 or
-          width == width_enum::fill_uint64 ? 8 :
-          0
-          
-  pci_config2_write:
-    seq:
-    - id: width
-      type: u4
-      enum: width_enum
-    - id: count
-      type: u4
-    - id: address
-      type: u8
-    - id: segment
-      type: u2
-    - id: buffer
-      size: width_size * count
-      
-    instances:
-      width_size:
-        value: |
-          width == width_enum::uint8 or
-          width == width_enum::fifo_uint8 or
-          width == width_enum::fill_uint8 ? 1 :
-          width == width_enum::uint16 or
-          width == width_enum::fifo_uint16 or
-          width == width_enum::fill_uint16 ? 2 :
-          width == width_enum::uint32 or
-          width == width_enum::fifo_uint32 or
-          width == width_enum::fill_uint32 ? 4 :
-          width == width_enum::uint64 or
-          width == width_enum::fifo_uint64 or
-          width == width_enum::fill_uint64 ? 8 :
-          0
-          
+      - id: width
+        type: u4
+        enum: width_enum
+      - id: count
+        type: u4
+      - id: address
+        type: u8
+      - id: buffer
+        size: width_size * count
+
+    instances: *width_size_instance
+
   pci_config_read_write:
     seq:
       - id: width
@@ -239,23 +135,24 @@ types:
       - id: data_mask
         size: width_size
 
-    instances:
-      width_size:
-        value: |
-          width == width_enum::uint8 or
-          width == width_enum::fifo_uint8 or
-          width == width_enum::fill_uint8 ? 1 :
-          width == width_enum::uint16 or
-          width == width_enum::fifo_uint16 or
-          width == width_enum::fill_uint16 ? 2 :
-          width == width_enum::uint32 or
-          width == width_enum::fifo_uint32 or
-          width == width_enum::fill_uint32 ? 4 :
-          width == width_enum::uint64 or
-          width == width_enum::fifo_uint64 or
-          width == width_enum::fill_uint64 ? 8 :
-          0
-        
+    instances: *width_size_instance
+
+  pci_config2_write:
+    seq:
+      - id: width
+        type: u4
+        enum: width_enum
+      - id: count
+        type: u4
+      - id: address
+        type: u8
+      - id: segment
+        type: u2
+      - id: buffer
+        size: width_size * count
+
+    instances: *width_size_instance
+
   pci_config2_read_write:
     seq:
       - id: width
@@ -270,23 +167,8 @@ types:
       - id: data_mask
         size: width_size
 
-    instances:
-      width_size:
-        value: |
-          width == width_enum::uint8 or
-          width == width_enum::fifo_uint8 or
-          width == width_enum::fill_uint8 ? 1 :
-          width == width_enum::uint16 or
-          width == width_enum::fifo_uint16 or
-          width == width_enum::fill_uint16 ? 2 :
-          width == width_enum::uint32 or
-          width == width_enum::fifo_uint32 or
-          width == width_enum::fill_uint32 ? 4 :
-          width == width_enum::uint64 or
-          width == width_enum::fifo_uint64 or
-          width == width_enum::fill_uint64 ? 8 :
-          0
-        
+    instances: *width_size_instance
+
   # NOTE:
   # SmBusAddress is NOT split in the saved record. It is a packed value.
   # Its semantic subfields come from SMBUS library macros in:
@@ -300,6 +182,7 @@ types:
   #
   # For now we keep only the real serialized layout in seq.
   # Semantic decoding can be added later as derived instances if needed.
+  
   smbus_execute:
     seq:
       - id: sm_bus_address
@@ -316,24 +199,47 @@ types:
       - id: buffer
         size: data_size
         doc: Raw SMBus payload bytes.
-        
+
   stall:
     seq:
       - id: duration
         type: u8
-        
+
   dispatch:
     seq:
       - id: entry_point
         type: u8
-        
+
   dispatch_2:
     seq:
       - id: entry_point
         type: u8
       - id: context
         type: u8
-        
+
+  information:
+    seq:
+      - id: information_length
+        type: u4
+      - id: information_data
+        size: information_length
+
+  io_poll:
+    seq:
+      - id: width
+        type: u4
+        enum: width_enum
+      - id: address
+        type: u8
+      - id: delay
+        type: u8
+      - id: data
+        size: width_size
+      - id: data_mask
+        size: width_size
+
+    instances: *width_size_instance
+
   mem_poll:
     seq:
       - id: width
@@ -350,61 +256,8 @@ types:
       - id: data_mask
         size: width_size
 
-    instances:
-      width_size:
-        value: |
-          width == width_enum::uint8 or
-          width == width_enum::fifo_uint8 or
-          width == width_enum::fill_uint8 ? 1 :
-          width == width_enum::uint16 or
-          width == width_enum::fifo_uint16 or
-          width == width_enum::fill_uint16 ? 2 :
-          width == width_enum::uint32 or
-          width == width_enum::fifo_uint32 or
-          width == width_enum::fill_uint32 ? 4 :
-          width == width_enum::uint64 or
-          width == width_enum::fifo_uint64 or
-          width == width_enum::fill_uint64 ? 8 :
-          0
-          
-  information:
-    seq:
-      - id: information_length
-        type: u4
-      - id: information_data
-        size: information_length
-        
-  io_poll:
-    seq:
-      - id: width
-        type: u4
-        enum: width_enum
-      - id: address
-        type: u8
-      - id: delay
-        type: u8
-      - id: data
-        size: width_size
-      - id: data_mask
-        size: width_size
+    instances: *width_size_instance
 
-    instances:
-      width_size:
-        value: |
-          width == width_enum::uint8 or
-          width == width_enum::fifo_uint8 or
-          width == width_enum::fill_uint8 ? 1 :
-          width == width_enum::uint16 or
-          width == width_enum::fifo_uint16 or
-          width == width_enum::fill_uint16 ? 2 :
-          width == width_enum::uint32 or
-          width == width_enum::fifo_uint32 or
-          width == width_enum::fill_uint32 ? 4 :
-          width == width_enum::uint64 or
-          width == width_enum::fifo_uint64 or
-          width == width_enum::fill_uint64 ? 8 :
-          0 
-          
   pci_config_poll:
     seq:
       - id: width
@@ -419,23 +272,8 @@ types:
       - id: data_mask
         size: width_size
 
-    instances:
-      width_size:
-        value: |
-          width == width_enum::uint8 or
-          width == width_enum::fifo_uint8 or
-          width == width_enum::fill_uint8 ? 1 :
-          width == width_enum::uint16 or
-          width == width_enum::fifo_uint16 or
-          width == width_enum::fill_uint16 ? 2 :
-          width == width_enum::uint32 or
-          width == width_enum::fifo_uint32 or
-          width == width_enum::fill_uint32 ? 4 :
-          width == width_enum::uint64 or
-          width == width_enum::fifo_uint64 or
-          width == width_enum::fill_uint64 ? 8 :
-          0 
-          
+    instances: *width_size_instance
+
   pci_config2_poll:
     seq:
       - id: width
@@ -452,26 +290,11 @@ types:
       - id: data_mask
         size: width_size
 
-    instances:
-      width_size:
-        value: |
-          width == width_enum::uint8 or
-          width == width_enum::fifo_uint8 or
-          width == width_enum::fill_uint8 ? 1 :
-          width == width_enum::uint16 or
-          width == width_enum::fifo_uint16 or
-          width == width_enum::fill_uint16 ? 2 :
-          width == width_enum::uint32 or
-          width == width_enum::fifo_uint32 or
-          width == width_enum::fill_uint32 ? 4 :
-          width == width_enum::uint64 or
-          width == width_enum::fifo_uint64 or
-          width == width_enum::fill_uint64 ? 8 :
-          0
-          
+    instances: *width_size_instance
+
   terminate:
     seq: []
-      
+
 enums:
   opcode_enum:
     0x00: io_write
@@ -493,7 +316,7 @@ enums:
     0x10: pci_config2_poll
     0xaa: header
     0xff: terminate
-    
+
   width_enum:
     0: uint8
     1: uint16
