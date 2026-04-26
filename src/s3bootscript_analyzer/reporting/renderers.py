@@ -33,6 +33,9 @@ FIELD_RAW = "raw"
 SEMANTIC_COLUMN = 120
 SEMANTIC_COLUMN_VERBOSE = 160
 SEMANTIC_SEPARATOR = " | "
+RenderedHeader = dict[str, int | str]
+RenderedFields = dict[str, str]
+RenderedRecord = dict[str, str | int | RenderedFields]
 SEMANTIC_ANNOTATIONS: dict[str, str] = {
     "IO_READ_WRITE": "io[address] <- (io[address] & data_mask) | data",
     "MEM_READ_WRITE": "mem[address] <- (mem[address] & data_mask) | data",
@@ -115,7 +118,7 @@ class SemanticIrRenderer:
         return LINE_SEPARATOR.join(lines) + TRAILING_LINE_SEPARATOR
 
 
-def _render_header(header: RawTableHeader) -> dict[str, int | str]:
+def _render_header(header: RawTableHeader) -> RenderedHeader:
     return {
         "magic": format_integer(header.magic),
         "length": header.length,
@@ -124,7 +127,7 @@ def _render_header(header: RawTableHeader) -> dict[str, int | str]:
     }
 
 
-def _render_record(record: RawOpcodeRecord) -> dict[str, object]:
+def _render_record(record: RawOpcodeRecord) -> RenderedRecord:
     return {
         "offset": format_integer(record.offset),
         "mnemonic": get_opcode_mnemonic(record.opcode_id),
@@ -135,7 +138,7 @@ def _render_record(record: RawOpcodeRecord) -> dict[str, object]:
     }
 
 
-def _render_fields(record: RawOpcodeRecord) -> dict[str, str]:
+def _render_fields(record: RawOpcodeRecord) -> RenderedFields:
     if get_opcode_mnemonic(record.opcode_id) == UNKNOWN_MNEMONIC:
         return {FIELD_RAW: format_bytes(record.raw_bytes)}
     return {
