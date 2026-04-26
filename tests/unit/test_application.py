@@ -3,7 +3,7 @@ from pathlib import Path
 from s3bootscript_analyzer.application import (
     APPLICATION_NAME,
     APPLICATION_STATUS_READY,
-    DisassembleBootScriptUseCase,
+    BootScriptDisassembler,
     get_application_info,
 )
 from s3bootscript_analyzer.engine import build_default_opcode_decoder
@@ -56,17 +56,17 @@ def test_get_application_info_returns_scaffold_metadata() -> None:
     assert application_info.status == APPLICATION_STATUS_READY
 
 
-def test_use_case_decodes_text_ir(tmp_path: Path) -> None:
+def test_disassembler_decodes_text_ir(tmp_path: Path) -> None:
     input_path = tmp_path / "boot-script.bin"
     input_path.write_bytes(STALL_RAW_BYTES)
-    use_case = DisassembleBootScriptUseCase(
+    disassembler = BootScriptDisassembler(
         file_loader=FileLoader(),
         raw_parser=StaticRawParser(),
         opcode_decoder=build_default_opcode_decoder(),
         renderer=TextIrRenderer(),
     )
 
-    text_ir = use_case.execute(input_path)
+    text_ir = disassembler.execute(input_path)
 
     assert "BOOT_SCRIPT_TABLE" in text_ir
     assert "STALL" in text_ir

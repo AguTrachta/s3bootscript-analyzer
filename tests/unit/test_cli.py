@@ -14,7 +14,7 @@ from s3bootscript_analyzer.reporting import (
 )
 
 
-class FakeUseCase:
+class FakeDisassembler:
 
     def __init__(self, output: str) -> None:
         self._output = output
@@ -23,7 +23,7 @@ class FakeUseCase:
         return self._output
 
 
-class FailingUseCase:
+class FailingDisassembler:
 
     def execute(self, _path: Path) -> str:
         raise BinaryLoadError("wrapped load failure")
@@ -60,7 +60,7 @@ def test_main_accepts_valid_output_formats(
     capsys: CaptureFixture[str],
     monkeypatch: MonkeyPatch,
 ) -> None:
-    captured_renderer = _patch_successful_use_case(monkeypatch)
+    captured_renderer = _patch_successful_disassembler(monkeypatch)
 
     assert main(
         ["--input-binary",
@@ -83,7 +83,7 @@ def test_main_writes_output_to_stdout(
     capsys: CaptureFixture[str],
     monkeypatch: MonkeyPatch,
 ) -> None:
-    _patch_successful_use_case(monkeypatch, "stdout output\n")
+    _patch_successful_disassembler(monkeypatch, "stdout output\n")
 
     exit_code = main(["--input-binary", str(tmp_path / "input.bin")])
     captured = capsys.readouterr()
@@ -94,7 +94,7 @@ def test_main_writes_output_to_stdout(
 
 def test_main_writes_output_to_file(tmp_path: Path, monkeypatch: MonkeyPatch) -> None:
     output_path = tmp_path / "report.txt"
-    _patch_successful_use_case(monkeypatch, "file output\n")
+    _patch_successful_disassembler(monkeypatch, "file output\n")
 
     exit_code = main(
         [
@@ -115,14 +115,14 @@ def test_main_wraps_expected_analyzer_errors(
     monkeypatch: MonkeyPatch,
 ) -> None:
 
-    def fake_build_default_use_case(
+    def fake_build_default_disassembler(
         renderer: BootScriptRenderer | None = None, verbose: bool = False
-    ) -> FailingUseCase:
+    ) -> FailingDisassembler:
         assert renderer is not None
         assert verbose is False
-        return FailingUseCase()
+        return FailingDisassembler()
 
-    monkeypatch.setattr(cli, "build_default_use_case", fake_build_default_use_case)
+    monkeypatch.setattr(cli, "build_default_disassembler", fake_build_default_disassembler)
 
     exit_code = main(["--input-binary", str(tmp_path / "input.bin")])
     captured = capsys.readouterr()
@@ -131,19 +131,19 @@ def test_main_wraps_expected_analyzer_errors(
     assert captured.out == "Error: wrapped load failure\n"
 
 
-def _patch_successful_use_case(
+def _patch_successful_disassembler(
     monkeypatch: MonkeyPatch,
     output: str = "rendered\n",
 ) -> list[BootScriptRenderer]:
     captured_renderer: list[BootScriptRenderer] = []
 
-    def fake_build_default_use_case(
+    def fake_build_default_disassembler(
         renderer: BootScriptRenderer | None = None, verbose: bool = False
-    ) -> FakeUseCase:
+    ) -> FakeDisassembler:
         assert renderer is not None
         assert verbose is False
         captured_renderer.append(renderer)
-        return FakeUseCase(output)
+        return FakeDisassembler(output)
 
-    monkeypatch.setattr(cli, "build_default_use_case", fake_build_default_use_case)
+    monkeypatch.setattr(cli, "build_default_disassembler", fake_build_default_disassembler)
     return captured_renderer

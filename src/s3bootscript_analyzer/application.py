@@ -24,7 +24,7 @@ class ApplicationInfo:
 
 
 @dataclass(frozen=True)
-class DisassembleBootScriptUseCase:
+class BootScriptDisassembler:
     """Coordinate loading, parsing, decoding, and text rendering."""
 
     file_loader: FileLoader
@@ -47,13 +47,12 @@ def get_application_info() -> ApplicationInfo:
     return ApplicationInfo()
 
 
-def build_default_use_case(
-    renderer: BootScriptRenderer | None = None,
-    verbose: bool = False
-) -> DisassembleBootScriptUseCase:
-    """Build the default disassembly use case from concrete adapters."""
+def build_default_disassembler(
+    renderer: BootScriptRenderer | None = None, verbose: bool = False
+) -> BootScriptDisassembler:
+    """Build the default disassembler from concrete adapters."""
 
-    return DisassembleBootScriptUseCase(
+    return BootScriptDisassembler(
         file_loader=FileLoader(),
         raw_parser=KaitaiBootScriptRawParser(),
         opcode_decoder=build_default_opcode_decoder(),

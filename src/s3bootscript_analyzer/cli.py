@@ -7,7 +7,7 @@ from collections.abc import Sequence
 from enum import StrEnum
 from pathlib import Path
 
-from s3bootscript_analyzer.application import build_default_use_case
+from s3bootscript_analyzer.application import build_default_disassembler
 from s3bootscript_analyzer.errors import BootScriptAnalyzerError
 from s3bootscript_analyzer.reporting import (
     BootScriptRenderer,
@@ -88,7 +88,7 @@ def _disassemble(
     verbose: bool,
 ) -> int:
     try:
-        output = build_default_use_case(renderer, verbose=verbose).execute(input_binary)
+        output = build_default_disassembler(renderer, verbose=verbose).execute(input_binary)
         write_text_output(output, output_report)
     except BootScriptAnalyzerError as ex:
         print(f"Error: {ex}")
