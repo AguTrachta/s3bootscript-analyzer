@@ -17,6 +17,7 @@ from s3bootscript_analyzer.engine.formatting import (
     format_bytes,
     format_integer,
     format_semantic_value,
+    format_value,
 )
 from s3bootscript_analyzer.errors import OutputWriteError
 from s3bootscript_analyzer.parsers.raw import (
@@ -79,9 +80,9 @@ class TextIrRenderer:
         opcode_lines: Sequence[str],
     ) -> str:
         rendered_lines = _annotate_opcode_lines(raw_script.records, opcode_lines, self._verbose)
-        return self.render_lines(header_text, rendered_lines)
+        return self._render_lines(header_text, rendered_lines)
 
-    def render_lines(self, header_text: str, opcode_lines: Sequence[str]) -> str:
+    def _render_lines(self, header_text: str, opcode_lines: Sequence[str]) -> str:
         return LINE_SEPARATOR.join((header_text, *opcode_lines)) + TRAILING_LINE_SEPARATOR
 
 
@@ -138,7 +139,7 @@ def _render_fields(record: RawOpcodeRecord) -> dict[str, str]:
     if get_opcode_mnemonic(record.opcode_id) == UNKNOWN_MNEMONIC:
         return {FIELD_RAW: format_bytes(record.raw_bytes)}
     return {
-        field.name: field.format_value(record.body)
+        field: format_value(getattr(record.body, field, MISSING_FIELD_TEXT))
         for field in get_opcode_fields(record.opcode_id)
     }
 
@@ -156,7 +157,7 @@ def _render_semantic_record(record: RawOpcodeRecord) -> str | None:
         return None
     rendered = template
     semantic_fields = {
-        field.name: format_semantic_value(getattr(record.body, field.name, MISSING_FIELD_TEXT))
+        field: format_semantic_value(getattr(record.body, field, MISSING_FIELD_TEXT))
         for field in get_opcode_fields(record.opcode_id)
     }
     for field_name in sorted(semantic_fields, key=len, reverse=True):

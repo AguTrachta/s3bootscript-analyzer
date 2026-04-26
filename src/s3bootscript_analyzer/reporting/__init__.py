@@ -1,8 +1,8 @@
-"""Text rendering and output helpers."""
+"""Rendering and output helpers."""
 
 from __future__ import annotations
 
-from s3bootscript_analyzer.reporting.text import (
+from s3bootscript_analyzer.reporting.renderers import (
     BootScriptRenderer,
     JsonIrRenderer,
     SemanticIrRenderer,
