@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import json
 from collections.abc import Iterable, Iterator, Sequence
+from itertools import chain
 from pathlib import Path
 from typing import Protocol
 
@@ -30,7 +31,7 @@ LINE_SEPARATOR = "\n"
 TRAILING_LINE_SEPARATOR = "\n"
 JSON_INDENT = 2
 FIELD_RAW = "raw"
-SEMANTIC_COLUMN = 120
+SEMANTIC_COLUMN = 115
 SEMANTIC_COLUMN_VERBOSE = 160
 SEMANTIC_SEPARATOR = " | "
 RenderedHeader = dict[str, int | str]
@@ -85,8 +86,8 @@ class TextIrRenderer:
         rendered_lines = _annotate_opcode_lines(raw_script.records, opcode_lines, self._verbose)
         return self._render_lines(header_text, rendered_lines)
 
-    def _render_lines(self, header_text: str, opcode_lines: Sequence[str]) -> str:
-        return LINE_SEPARATOR.join((header_text, *opcode_lines)) + TRAILING_LINE_SEPARATOR
+    def _render_lines(self, header_text: str, opcode_lines: Iterable[str]) -> str:
+        return LINE_SEPARATOR.join(chain((header_text, ), opcode_lines)) + TRAILING_LINE_SEPARATOR
 
 
 class JsonIrRenderer:
@@ -169,12 +170,10 @@ def _render_semantic_record(record: RawOpcodeRecord) -> str | None:
 
 
 def _annotate_opcode_lines(
-    records: Sequence[RawOpcodeRecord], opcode_lines: Sequence[str], verbose: bool
-) -> list[str]:
-    return [
-        _annotate_opcode_line(record, line, verbose)
-        for record, line in zip(records, opcode_lines, strict=True)
-    ]
+    records: Iterable[RawOpcodeRecord], opcode_lines: Iterable[str], verbose: bool
+) -> Iterator[str]:
+    for record, line in zip(records, opcode_lines, strict=True):
+        yield _annotate_opcode_line(record, line, verbose)
 
 
 def _annotate_opcode_line(record: RawOpcodeRecord, line: str, verbose: bool) -> str:
