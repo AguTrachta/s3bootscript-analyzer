@@ -35,6 +35,9 @@ jobs:
       - name: Install dependencies
         run: poetry install --no-interaction
 
+      - name: Install ShellCheck
+        run: sudo apt-get update && sudo apt-get install --yes shellcheck
+
       - name: Generate Kaitai parser
         run: scripts/generate-kaitai
 
@@ -49,6 +52,9 @@ jobs:
 
       - name: Run Bandit
         run: poetry run bandit -c bandit.yaml -r src
+
+      - name: Run ShellCheck
+        run: shellcheck scripts/*
 
       - name: Run Radon
         run: poetry run radon cc src --show-complexity
