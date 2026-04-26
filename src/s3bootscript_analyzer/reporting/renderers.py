@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 import json
-from collections.abc import Sequence
+from collections.abc import Iterable, Iterator, Sequence
 from pathlib import Path
 from typing import Protocol
 
@@ -147,11 +147,11 @@ def _render_fields(record: RawOpcodeRecord) -> RenderedFields:
     }
 
 
-def _render_semantic_lines(records: Sequence[RawOpcodeRecord]) -> list[str]:
-    return [
-        rendered_line for record in records
-        if (rendered_line := _render_semantic_record(record)) is not None
-    ]
+def _render_semantic_lines(records: Iterable[RawOpcodeRecord]) -> Iterator[str]:
+    for record in records:
+        rendered_line = _render_semantic_record(record)
+        if rendered_line is not None:
+            yield rendered_line
 
 
 def _render_semantic_record(record: RawOpcodeRecord) -> str | None:
