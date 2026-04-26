@@ -21,6 +21,8 @@ class OpcodeDecoderRegistry:
 
     def decode(self, record: RawOpcodeRecord, verbose: bool = False) -> str:
         opcode_id = _known_opcode_id(record.opcode_id)
+        if opcode_id is None:
+            decoder = self._unknown_decoder.decode(record, verbose)
         decoder = self._decoders.get(opcode_id, self._unknown_decoder)
         return decoder.decode(record, verbose)
 
