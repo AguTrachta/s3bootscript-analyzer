@@ -3,33 +3,24 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
-from enum import StrEnum
 from pathlib import Path
+from typing import Final
 
 from s3bootscript_analyzer.engine import BootScriptOpcodeDecoder, build_default_opcode_decoder
 from s3bootscript_analyzer.ingest import FileLoader
 from s3bootscript_analyzer.parsers import BootScriptRawParser, KaitaiBootScriptRawParser
 from s3bootscript_analyzer.reporting import BootScriptRenderer, TextIrRenderer
 
-
-class ApplicationName(StrEnum):
-    """Known application identifiers."""
-
-    S3_BOOTSCRIPT_ANALYZER = "s3bootscript-analyzer"
-
-
-class ApplicationStatus(StrEnum):
-    """Known application readiness states."""
-
-    READY = "ready"
+APPLICATION_NAME: Final[str] = "s3bootscript-analyzer"
+APPLICATION_STATUS_READY: Final[str] = "ready"
 
 
 @dataclass(frozen=True)
 class ApplicationInfo:
     """Static metadata exposed for integration checks."""
 
-    name: ApplicationName = ApplicationName.S3_BOOTSCRIPT_ANALYZER
-    status: ApplicationStatus = ApplicationStatus.READY
+    name: str = APPLICATION_NAME
+    status: str = APPLICATION_STATUS_READY
 
 
 @dataclass(frozen=True)
