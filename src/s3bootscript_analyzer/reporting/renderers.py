@@ -87,7 +87,7 @@ class TextIrRenderer:
         return self._render_lines(header_text, rendered_lines)
 
     def _render_lines(self, header_text: str, opcode_lines: Iterable[str]) -> str:
-        return LINE_SEPARATOR.join(chain((header_text, ), opcode_lines)) + TRAILING_LINE_SEPARATOR
+        return LINE_SEPARATOR.join(chain((header_text,), opcode_lines)) + TRAILING_LINE_SEPARATOR
 
 
 class JsonIrRenderer:

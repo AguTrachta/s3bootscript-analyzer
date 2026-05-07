@@ -24,7 +24,7 @@ class OpcodeDecoder(Protocol):
         raise NotImplementedError
 
 
-FieldNames = tuple[str, ...]
+type FieldNames = tuple[str, ...]
 
 
 @dataclass(frozen=True)
@@ -240,7 +240,7 @@ EMPTY_FIELDS: FieldNames = ()
 WRITE_FIELDS: FieldNames = ("width", "count", "address", "buffer")
 SEGMENTED_WRITE_FIELDS: FieldNames = ("width", "count", "address", "segment", "buffer")
 READ_WRITE_FIELDS: FieldNames = ("width", "address", "data", "data_mask")
-SEGMENTED_READ_WRITE_FIELDS = (
+SEGMENTED_READ_WRITE_FIELDS: FieldNames = (
     "width",
     "address",
     "segment",
@@ -248,7 +248,7 @@ SEGMENTED_READ_WRITE_FIELDS = (
     "data_mask",
 )
 POLL_FIELDS: FieldNames = ("width", "address", "delay", "data", "data_mask")
-MEM_POLL_FIELDS = (
+MEM_POLL_FIELDS: FieldNames = (
     "width",
     "address",
     "duration",
@@ -256,7 +256,7 @@ MEM_POLL_FIELDS = (
     "data",
     "data_mask",
 )
-SEGMENTED_POLL_FIELDS = (
+SEGMENTED_POLL_FIELDS: FieldNames = (
     "width",
     "address",
     "segment",
@@ -265,8 +265,8 @@ SEGMENTED_POLL_FIELDS = (
     "data_mask",
 )
 SMBUS_FIELDS: FieldNames = ("sm_bus_address", "operation", "data_size", "buffer")
-STALL_FIELDS: FieldNames = ("duration", )
-DISPATCH_FIELDS: FieldNames = ("entry_point", )
+STALL_FIELDS: FieldNames = ("duration",)
+DISPATCH_FIELDS: FieldNames = ("entry_point",)
 DISPATCH_2_FIELDS: FieldNames = ("entry_point", "context")
 INFORMATION_FIELDS: FieldNames = ("information_length", "information_data")
 

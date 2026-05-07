@@ -721,22 +721,7 @@ pyyaml = "*"
 [package.extras]
 dev = ["doc8", "flake8", "flake8-import-order", "rstcheck[sphinx]", "ruff", "sphinx"]
 
-[[package]]
-name = "yapf"
-version = "0.43.0"
-description = "A formatter for Python code"
-optional = false
-python-versions = ">=3.7"
-groups = ["dev"]
-files = [
-    {file = "yapf-0.43.0-py3-none-any.whl", hash = "sha256:224faffbc39c428cb095818cf6ef5511fdab6f7430a10783fdfb292ccf2852ca"},
-    {file = "yapf-0.43.0.tar.gz", hash = "sha256:00d3aa24bfedff9420b2e0d5d9f5ab6d9d4268e72afbf59bb3fa542781d5218e"},
-]
-
-[package.dependencies]
-platformdirs = ">=3.5.1"
-
 [metadata]
 lock-version = "2.1"
 python-versions = ">=3.12,<3.13"
-content-hash = "046c3c6632af1dfdf4610baa3cb6d2702737fcb1512caebcb499b56abdddc22b"
+content-hash = "534df4f36bee02747daba7c85698be0d2477a7c7bfc7a63820633838ce66f9fb"

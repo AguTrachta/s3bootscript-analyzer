@@ -119,7 +119,7 @@ def _raw_opcode_record(data: bytes, generated_record: object, offset: int) -> Ra
         length=length,
         offset=offset,
         body=_object_attribute(generated_record, BODY_ATTRIBUTE),
-        raw_bytes=data[offset:offset + length],
+        raw_bytes=data[offset : offset + length],
     )
 
 

@@ -13,7 +13,6 @@ from s3bootscript_analyzer.reporting import TextIrRenderer
 
 
 class StaticRawParser:
-
     def parse(self, source: BinarySource) -> RawBootScript:
         return RawBootScript(
             table_header=RawTableHeader(
@@ -35,7 +34,6 @@ class StaticRawParser:
 
 
 class StallBody:
-
     def __init__(self, duration: int) -> None:
         self.duration = duration
 

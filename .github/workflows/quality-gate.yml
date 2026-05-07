@@ -48,7 +48,7 @@ jobs:
         run: PYLINTHOME=.pylint.d poetry run pylint src tests
 
       - name: Run mypy
-        run: poetry run mypy src tests
+        run: poetry run mypy --strict src tests
 
       - name: Run Bandit
         run: poetry run bandit -c bandit.yaml -r src
@@ -59,8 +59,8 @@ jobs:
       - name: Run Radon
         run: poetry run radon cc src --show-complexity
 
-      - name: Run YAPF check
-        run: poetry run yapf --diff --recursive src tests
+      - name: Run Ruff format check
+        run: poetry run ruff format --check src tests
 
       - name: Run tests
         run: poetry run pytest

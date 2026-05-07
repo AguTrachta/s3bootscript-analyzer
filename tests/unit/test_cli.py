@@ -15,7 +15,6 @@ from s3bootscript_analyzer.reporting import (
 
 
 class FakeDisassembler:
-
     def __init__(self, output: str) -> None:
         self._output = output
 
@@ -24,7 +23,6 @@ class FakeDisassembler:
 
 
 class FailingDisassembler:
-
     def execute(self, _path: Path) -> str:
         raise BinaryLoadError("wrapped load failure")
 
@@ -62,10 +60,10 @@ def test_main_accepts_valid_output_formats(
 ) -> None:
     captured_renderer = _patch_successful_disassembler(monkeypatch)
 
-    assert main(
-        ["--input-binary",
-         str(tmp_path / "input.bin"), "--output-format", output_format]
-    ) == EXIT_SUCCESS
+    assert (
+        main(["--input-binary", str(tmp_path / "input.bin"), "--output-format", output_format])
+        == EXIT_SUCCESS
+    )
 
     assert capsys.readouterr().out == "rendered\n"
     assert isinstance(captured_renderer[0], renderer_type)
