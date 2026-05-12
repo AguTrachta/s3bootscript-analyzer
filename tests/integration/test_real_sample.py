@@ -1,9 +1,10 @@
 import json
+import logging
 from pathlib import Path
 from typing import Any
 
 import pytest
-from pytest import CaptureFixture
+from pytest import CaptureFixture, LogCaptureFixture
 
 from s3bootscript_analyzer.cli import EXIT_SUCCESS, main
 from s3bootscript_analyzer.errors import RawParseError
@@ -43,6 +44,29 @@ def test_kaitai_parser_wraps_malformed_input() -> None:
 
     with pytest.raises(RawParseError):
         KaitaiBootScriptRawParser().parse(source)
+
+
+def test_kaitai_parser_debug_logs_malformed_input_context(
+    caplog: LogCaptureFixture,
+) -> None:
+    caplog.set_level(logging.DEBUG, logger="s3bootscript_analyzer.parsers.kaitai")
+    source = BinarySource(
+        path=Path("malformed.bin"),
+        data=bytes.fromhex("aa000d0100140000000000000002"),
+    )
+
+    with pytest.raises(RawParseError):
+        KaitaiBootScriptRawParser().parse(source)
+
+    messages = [record.message for record in caplog.records]
+    assert any(
+        "starting Kaitai parse path=malformed.bin size=14" in message for message in messages
+    )
+    assert any(
+        "header preview opcode=0xaa length=13 version=0x1 table_length=20 input_size=14" in message
+        for message in messages
+    )
+    assert any("Kaitai parse failed cause_type=EndOfStreamError" in message for message in messages)
 
 
 def test_cli_text_output_for_real_sample(capsys: CaptureFixture[str]) -> None:

@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import logging
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Final
@@ -13,6 +14,7 @@ from s3bootscript_analyzer.reporting import BootScriptRenderer, TextIrRenderer
 
 APPLICATION_NAME: Final[str] = "s3bootscript-analyzer"
 APPLICATION_STATUS_READY: Final[str] = "ready"
+_LOGGER = logging.getLogger(__name__)
 
 
 @dataclass(frozen=True)
@@ -34,11 +36,23 @@ class BootScriptDisassembler:
     verbose: bool = False
 
     def execute(self, path: str | Path) -> str:
-        source = self.file_loader.load(path)
-        raw_script = self.raw_parser.parse(source)
+        _LOGGER.debug("starting disassembly path=%s", path)
+        raw_script = self.raw_parser.parse(self.file_loader.load(path))
+        _LOGGER.debug(
+            "parsed boot script magic=0x%x header_length=%d "
+            "version=0x%x table_length=%d records=%d",
+            raw_script.table_header.magic,
+            raw_script.table_header.length,
+            raw_script.table_header.version,
+            raw_script.table_header.table_length,
+            len(raw_script.records),
+        )
         header_text = self.opcode_decoder.decode_header(raw_script.table_header)
         opcode_lines = self.opcode_decoder.decode_all(raw_script, self.verbose)
-        return self.renderer.render(raw_script, header_text, opcode_lines)
+        _LOGGER.debug("decoded opcode records count=%d", len(opcode_lines))
+        output = self.renderer.render(raw_script, header_text, opcode_lines)
+        _LOGGER.debug("rendered output length=%d", len(output))
+        return output
 
 
 def get_application_info() -> ApplicationInfo:

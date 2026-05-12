@@ -27,6 +27,14 @@ class FailingDisassembler:
         raise BinaryLoadError("wrapped load failure")
 
 
+class CausedFailingDisassembler:
+    def execute(self, _path: Path) -> str:
+        try:
+            raise ValueError("root cause")
+        except ValueError as ex:
+            raise BinaryLoadError("wrapped load failure") from ex
+
+
 def test_main_returns_success(capsys: CaptureFixture[str]) -> None:
     exit_code = main([])
     captured = capsys.readouterr()
@@ -107,6 +115,22 @@ def test_main_writes_output_to_file(tmp_path: Path, monkeypatch: MonkeyPatch) ->
     assert output_path.read_text(encoding="utf-8") == "file output\n"
 
 
+def test_main_accepts_debug_and_writes_diagnostics_to_stderr(
+    tmp_path: Path,
+    capsys: CaptureFixture[str],
+    monkeypatch: MonkeyPatch,
+) -> None:
+    _patch_successful_disassembler(monkeypatch)
+
+    exit_code = main(["--input-binary", str(tmp_path / "input.bin"), "--debug"])
+    captured = capsys.readouterr()
+
+    assert exit_code == EXIT_SUCCESS
+    assert captured.out == "rendered\n"
+    assert "Debug: debug logging enabled" in captured.err
+    assert "Debug:" not in captured.out
+
+
 def test_main_wraps_expected_analyzer_errors(
     tmp_path: Path,
     capsys: CaptureFixture[str],
@@ -127,6 +151,31 @@ def test_main_wraps_expected_analyzer_errors(
 
     assert exit_code == EXIT_FAILURE
     assert captured.out == "Error: wrapped load failure\n"
+    assert captured.err == ""
+
+
+def test_main_debug_logs_expected_analyzer_error_cause(
+    tmp_path: Path,
+    capsys: CaptureFixture[str],
+    monkeypatch: MonkeyPatch,
+) -> None:
+
+    def fake_build_default_disassembler(
+        renderer: BootScriptRenderer | None = None, verbose: bool = False
+    ) -> CausedFailingDisassembler:
+        assert renderer is not None
+        assert verbose is False
+        return CausedFailingDisassembler()
+
+    monkeypatch.setattr(cli, "build_default_disassembler", fake_build_default_disassembler)
+
+    exit_code = main(["--input-binary", str(tmp_path / "input.bin"), "--debug"])
+    captured = capsys.readouterr()
+
+    assert exit_code == EXIT_FAILURE
+    assert captured.out == "Error: wrapped load failure\n"
+    assert "Debug: analyzer error type=BinaryLoadError message=wrapped load failure" in captured.err
+    assert "Debug: analyzer error cause type=ValueError message=root cause" in captured.err
 
 
 def _patch_successful_disassembler(

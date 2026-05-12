@@ -2,9 +2,10 @@
 
 from __future__ import annotations
 
+import logging
 from importlib import import_module
 from types import ModuleType
-from typing import Any, SupportsInt, cast
+from typing import Any, Literal, SupportsInt, cast
 
 from kaitaistruct import KaitaiStructError
 
@@ -24,17 +25,30 @@ HEADER_OPCODE_ID = 0xAA
 FIRST_RECORD_INDEX = 0
 FIRST_OPCODE_OFFSET = 0
 NEXT_RECORD_STEP = 1
+HEADER_PREVIEW_SIZE = 13
+HEADER_OPCODE_OFFSET = 0
+HEADER_OPCODE_SIZE = 2
+HEADER_LENGTH_OFFSET = 2
+HEADER_VERSION_OFFSET = 3
+HEADER_VERSION_SIZE = 2
+HEADER_TABLE_LENGTH_OFFSET = 5
+HEADER_TABLE_LENGTH_SIZE = 4
+LITTLE_ENDIAN: Literal["little"] = "little"
 RECORDS_ATTRIBUTE = "records"
 BODY_ATTRIBUTE = "body"
 OPCODE_ATTRIBUTE = "opcode"
+_LOGGER = logging.getLogger(__name__)
 
 
 class KaitaiBootScriptRawParser:
     """Use generated Kaitai code and adapt it into raw domain records."""
 
     def parse(self, source: BinarySource) -> RawBootScript:
+        _LOGGER.debug("starting Kaitai parse path=%s size=%d", source.path, source.size())
+        _log_header_preview(source.data)
         generated_script = _parse_generated_script(source.data)
         generated_records = _generated_records(generated_script)
+        _LOGGER.debug("generated boot script records count=%d", len(generated_records))
         table_header = _read_table_header(generated_records)
         records = _read_opcode_records(source.data, generated_records)
         return RawBootScript(table_header=table_header, records=records)
@@ -47,7 +61,40 @@ def _parse_generated_script(data: bytes) -> Any:
     try:
         return generated_class(stream)
     except KaitaiStructError as ex:
+        _LOGGER.debug("Kaitai parse failed cause_type=%s message=%s", ex.__class__.__name__, ex)
         raise RawParseError("Unable to parse boot script binary.") from ex
+
+
+def _log_header_preview(data: bytes) -> None:
+    if len(data) < HEADER_PREVIEW_SIZE:
+        _LOGGER.debug("input too small for header preview size=%d", len(data))
+        return
+    opcode = _read_little_endian_int(data, HEADER_OPCODE_OFFSET, HEADER_OPCODE_SIZE)
+    length = data[HEADER_LENGTH_OFFSET]
+    version = _read_little_endian_int(data, HEADER_VERSION_OFFSET, HEADER_VERSION_SIZE)
+    table_length = _read_little_endian_int(
+        data,
+        HEADER_TABLE_LENGTH_OFFSET,
+        HEADER_TABLE_LENGTH_SIZE,
+    )
+    _LOGGER.debug(
+        "header preview opcode=0x%x length=%d version=0x%x table_length=%d input_size=%d",
+        opcode,
+        length,
+        version,
+        table_length,
+        len(data),
+    )
+    if table_length != len(data):
+        _LOGGER.debug(
+            "header table_length differs from input size table_length=%d input_size=%d",
+            table_length,
+            len(data),
+        )
+
+
+def _read_little_endian_int(data: bytes, offset: int, size: int) -> int:
+    return int.from_bytes(data[offset : offset + size], byteorder=LITTLE_ENDIAN)
 
 
 def _generated_module() -> ModuleType:

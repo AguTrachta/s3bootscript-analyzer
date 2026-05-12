@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import json
+import logging
 from collections.abc import Iterable, Iterator, Sequence
 from itertools import chain
 from pathlib import Path
@@ -34,6 +35,7 @@ FIELD_RAW = "raw"
 SEMANTIC_COLUMN = 115
 SEMANTIC_COLUMN_VERBOSE = 160
 SEMANTIC_SEPARATOR = " | "
+_LOGGER = logging.getLogger(__name__)
 RenderedHeader = dict[str, int | str]
 RenderedFields = dict[str, str]
 RenderedRecord = dict[str, str | int | RenderedFields]
@@ -200,9 +202,13 @@ def _semantic_annotation(record: RawOpcodeRecord) -> str | None:
 
 def write_text_output(text: str, output_path: Path | None) -> None:
     if output_path is None:
+        _LOGGER.debug("writing output target=stdout length=%d", len(text))
         print(text, end="")
+        _LOGGER.debug("wrote output target=stdout")
         return
+    _LOGGER.debug("writing output path=%s length=%d", output_path, len(text))
     try:
         output_path.write_text(text, encoding="utf-8")
     except OSError as ex:
         raise OutputWriteError(f"Unable to write output text '{output_path}': {ex}") from ex
+    _LOGGER.debug("wrote output path=%s", output_path)

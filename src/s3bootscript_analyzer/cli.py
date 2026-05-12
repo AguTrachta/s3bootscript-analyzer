@@ -3,6 +3,8 @@
 from __future__ import annotations
 
 import argparse
+import logging
+import sys
 from collections.abc import Sequence
 from enum import StrEnum
 from pathlib import Path
@@ -20,6 +22,8 @@ from s3bootscript_analyzer.reporting import (
 EXIT_SUCCESS = 0
 EXIT_FAILURE = 1
 READY_MESSAGE = "s3bootscript-analyzer scaffold ready."
+DEBUG_LOG_FORMAT = "Debug: %(message)s"
+_LOGGER = logging.getLogger(__name__)
 
 
 class OutputFormat(StrEnum):
@@ -61,11 +65,17 @@ def build_parser() -> argparse.ArgumentParser:
         action="store_true",
         help="Include opcode, length, and payload metadata in text output.",
     )
+    parser.add_argument(
+        "--debug",
+        action="store_true",
+        help="Write diagnostic messages to stderr while disassembling.",
+    )
     return parser
 
 
 def main(argv: Sequence[str] | None = None) -> int:
     args = build_parser().parse_args(argv)
+    _configure_logging(args.debug)
     return _run(args)
 
 
@@ -91,6 +101,7 @@ def _disassemble(
         output = build_default_disassembler(renderer, verbose=verbose).execute(input_binary)
         write_text_output(output, output_report)
     except BootScriptAnalyzerError as ex:
+        _log_analyzer_error(ex)
         print(f"Error: {ex}")
         return EXIT_FAILURE
     return EXIT_SUCCESS
@@ -102,6 +113,28 @@ def _build_renderer(output_format: OutputFormat, verbose: bool) -> BootScriptRen
     if output_format == OutputFormat.SEMANTIC:
         return SemanticIrRenderer()
     return TextIrRenderer(verbose=verbose)
+
+
+def _configure_logging(debug: bool) -> None:
+    level = logging.DEBUG if debug else logging.WARNING
+    logging.basicConfig(level=level, format=DEBUG_LOG_FORMAT, stream=sys.stderr, force=True)
+    if debug:
+        _LOGGER.debug("debug logging enabled")
+
+
+def _log_analyzer_error(error: BootScriptAnalyzerError) -> None:
+    _LOGGER.debug(
+        "analyzer error type=%s message=%s",
+        error.__class__.__name__,
+        error,
+    )
+    if error.__cause__ is None:
+        return
+    _LOGGER.debug(
+        "analyzer error cause type=%s message=%s",
+        error.__cause__.__class__.__name__,
+        error.__cause__,
+    )
 
 
 if __name__ == "__main__":
