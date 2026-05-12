@@ -2,4 +2,5 @@ exclude_dirs:
   - tests
   - docs
   - scripts
+  - src/s3bootscript_analyzer/parsers/generated
 skips: []
