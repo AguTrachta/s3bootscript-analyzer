@@ -1,0 +1,14 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+generated_dir="src/s3bootscript_analyzer/parsers/generated"
+schema="schemas/kaitai/s3bootscript_analizer.ksy"
+
+if ! command -v kaitai-struct-compiler >/dev/null 2>&1; then
+  echo "kaitai-struct-compiler is required to generate the S3 boot script parser." >&2
+  exit 1
+fi
+
+mkdir -p "${generated_dir}"
+kaitai-struct-compiler --target python --outdir "${generated_dir}" "${schema}"
+touch "${generated_dir}/__init__.py"
