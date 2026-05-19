@@ -1,3 +1,4 @@
+import json
 from pathlib import Path
 
 import pytest
@@ -178,6 +179,63 @@ def test_main_debug_logs_expected_analyzer_error_cause(
     assert "Debug: analyzer error cause type=ValueError message=root cause" in captured.err
 
 
+def test_main_generates_proc_iomem_profile_to_stdout(
+    capsys: CaptureFixture[str],
+    monkeypatch: MonkeyPatch,
+) -> None:
+    _patch_proc_iomem_reader(monkeypatch, "00001000-00001fff : System RAM\n")
+
+    exit_code = main(["--generate-profile", "proc-iomem"])
+    captured = capsys.readouterr()
+
+    assert exit_code == EXIT_SUCCESS
+    assert json.loads(captured.out) == {
+        "source": "proc_iomem",
+        "ranges": {
+            "os_controlled": [
+                {
+                    "name": "System RAM",
+                    "start": 4096,
+                    "end": 8191,
+                    "source_label": "System RAM",
+                }
+            ],
+            "firmware_related": [],
+            "mmio_related": [],
+            "unknown": [],
+        },
+        "diagnostics": [],
+        "schema_version": 1,
+    }
+
+
+def test_main_generates_proc_iomem_profile_to_file(
+    tmp_path: Path,
+    monkeypatch: MonkeyPatch,
+) -> None:
+    output_path = tmp_path / "profile.json"
+    _patch_proc_iomem_reader(monkeypatch, "00004000-00004fff : PCI Bus 0000:00\n")
+
+    exit_code = main(
+        [
+            "--generate-profile",
+            "proc-iomem",
+            "--profile-output",
+            str(output_path),
+        ]
+    )
+
+    assert exit_code == EXIT_SUCCESS
+    assert json.loads(output_path.read_text(encoding="utf-8"))["ranges"]["mmio_related"] == [
+        {
+            "name": "PCI Bus 0000:00",
+            "start": 16384,
+            "end": 20479,
+            "source_label": "PCI Bus 0000:00",
+        }
+    ]
+
+
 def _patch_successful_disassembler(
     monkeypatch: MonkeyPatch,
     output: str = "rendered\n",
@@ -194,3 +252,14 @@ def _patch_successful_disassembler(
 
     monkeypatch.setattr(cli, "build_default_disassembler", fake_build_default_disassembler)
     return captured_renderer
+
+
+def _patch_proc_iomem_reader(monkeypatch: MonkeyPatch, raw_text: str) -> None:
+    class FakeProcIomemReader:
+        def __init__(self, _runner: object) -> None:
+            pass
+
+        def read(self) -> str:
+            return raw_text
+
+    monkeypatch.setattr(cli, "ProcIomemReader", FakeProcIomemReader)
