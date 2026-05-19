@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import argparse
 import logging
+import subprocess  # nosec B404
 import sys
 from collections.abc import Sequence
 from enum import StrEnum
@@ -11,6 +12,12 @@ from pathlib import Path
 
 from s3bootscript_analyzer.application import build_default_disassembler
 from s3bootscript_analyzer.errors import BootScriptAnalyzerError
+from s3bootscript_analyzer.profile_data import (
+    JsonProfileWriter,
+    ProcIomemParser,
+    ProcIomemReader,
+)
+from s3bootscript_analyzer.profile_data.commands import SubprocessRunner
 from s3bootscript_analyzer.reporting import (
     BootScriptRenderer,
     JsonIrRenderer,
@@ -32,6 +39,12 @@ class OutputFormat(StrEnum):
     TEXT = "text"
     JSON = "json"
     SEMANTIC = "semantic"
+
+
+class ProfileGenerationSource(StrEnum):
+    """Supported platform profile generation sources."""
+
+    PROC_IOMEM = "proc-iomem"
 
 
 def build_parser() -> argparse.ArgumentParser:
@@ -70,6 +83,17 @@ def build_parser() -> argparse.ArgumentParser:
         action="store_true",
         help="Write diagnostic messages to stderr while disassembling.",
     )
+    parser.add_argument(
+        "--generate-profile",
+        type=ProfileGenerationSource,
+        choices=tuple(ProfileGenerationSource),
+        help="Generate a platform profile from the selected source.",
+    )
+    parser.add_argument(
+        "--profile-output",
+        type=Path,
+        help="Path where the generated platform profile JSON should be written.",
+    )
     return parser
 
 
@@ -80,6 +104,8 @@ def main(argv: Sequence[str] | None = None) -> int:
 
 
 def _run(args: argparse.Namespace) -> int:
+    if args.generate_profile == ProfileGenerationSource.PROC_IOMEM:
+        return _generate_proc_iomem_profile(args.profile_output)
     if args.input_binary is None:
         print(READY_MESSAGE)
         return EXIT_SUCCESS
@@ -89,6 +115,33 @@ def _run(args: argparse.Namespace) -> int:
         _build_renderer(args.output_format, args.verbose),
         args.verbose,
     )
+
+
+def _generate_proc_iomem_profile(
+    profile_output: Path | None,
+) -> int:
+    writer = JsonProfileWriter()
+    try:
+        profile = ProcIomemParser().parse(ProcIomemReader(SubprocessRunner()).read())
+        if profile_output is None:
+            print(writer.render(profile), end="")
+        else:
+            writer.write(profile, profile_output)
+    except BootScriptAnalyzerError as ex:
+        _log_analyzer_error(ex)
+        print(f"Error: {ex}")
+        return EXIT_FAILURE
+    except subprocess.CalledProcessError as ex:
+        _LOGGER.debug(
+            "profile source command failed returncode=%d command=%s",
+            ex.returncode,
+            ex.cmd,
+        )
+        print(
+            f"Error: unable to read profile source: command failed with exit code {ex.returncode}"
+        )
+        return EXIT_FAILURE
+    return EXIT_SUCCESS
 
 
 def _disassemble(
