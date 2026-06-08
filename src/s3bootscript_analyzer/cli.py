@@ -13,7 +13,9 @@ from pathlib import Path
 from s3bootscript_analyzer.application import build_default_disassembler
 from s3bootscript_analyzer.errors import BootScriptAnalyzerError
 from s3bootscript_analyzer.profile_data import (
+    KERNEL_IOMEM_PATTERN,
     JsonProfileWriter,
+    KernelIomemParser,
     ProcIomemParser,
     ProcIomemReader,
 )
@@ -45,6 +47,7 @@ class ProfileGenerationSource(StrEnum):
     """Supported platform profile generation sources."""
 
     PROC_IOMEM = "proc-iomem"
+    PROC_IOMEM_KERNEL = "kernel"
 
 
 def build_parser() -> argparse.ArgumentParser:
@@ -106,6 +109,8 @@ def main(argv: Sequence[str] | None = None) -> int:
 def _run(args: argparse.Namespace) -> int:
     if args.generate_profile == ProfileGenerationSource.PROC_IOMEM:
         return _generate_proc_iomem_profile(args.profile_output)
+    if args.generate_profile == ProfileGenerationSource.PROC_IOMEM_KERNEL:
+        return _generate_kernel_iomem_profile(args.profile_output)
     if args.input_binary is None:
         print(READY_MESSAGE)
         return EXIT_SUCCESS
@@ -123,6 +128,34 @@ def _generate_proc_iomem_profile(
     writer = JsonProfileWriter()
     try:
         profile = ProcIomemParser().parse(ProcIomemReader(SubprocessRunner()).read())
+        if profile_output is None:
+            print(writer.render(profile), end="")
+        else:
+            writer.write(profile, profile_output)
+    except BootScriptAnalyzerError as ex:
+        _log_analyzer_error(ex)
+        print(f"Error: {ex}")
+        return EXIT_FAILURE
+    except subprocess.CalledProcessError as ex:
+        _LOGGER.debug(
+            "profile source command failed returncode=%d command=%s",
+            ex.returncode,
+            ex.cmd,
+        )
+        print(
+            f"Error: unable to read profile source: command failed with exit code {ex.returncode}"
+        )
+        return EXIT_FAILURE
+    return EXIT_SUCCESS
+
+
+def _generate_kernel_iomem_profile(
+    profile_output: Path | None,
+) -> int:
+    writer = JsonProfileWriter()
+    try:
+        raw_text = ProcIomemReader(SubprocessRunner(), pattern=KERNEL_IOMEM_PATTERN).read()
+        profile = KernelIomemParser().parse(raw_text)
         if profile_output is None:
             print(writer.render(profile), end="")
         else:
