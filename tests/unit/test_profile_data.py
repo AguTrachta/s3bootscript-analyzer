@@ -9,6 +9,7 @@ from s3bootscript_analyzer.profile_data import (
     DEFAULT_SCHEMA_VERSION,
     GenerateProfile,
     JsonProfileWriter,
+    KernelIomemParser,
     PlatformProfile,
     ProcIomemParser,
     ProcIomemReader,
@@ -158,6 +159,68 @@ def test_proc_iomem_parser_reports_empty_matching_source() -> None:
     assert profile.ranges == ProfileRanges()
     assert profile.diagnostics == [
         ProfileDiagnostic("warning", "/proc/iomem source did not contain matching ranges")
+    ]
+
+
+def test_kernel_iomem_parser_maps_kernel_labels_to_profile_names() -> None:
+    profile = KernelIomemParser().parse(
+        "\n".join(
+            [
+                "00001000-00001fff : Kernel code",
+                "00002000-00002fff : Kernel data",
+                "00003000-00003fff : Kernel bss",
+                "00004000-00004fff : Kernel rodata",
+                "00005000-00005fff : System RAM",
+            ]
+        )
+    )
+
+    assert profile.source == "proc_iomem_kernel"
+    assert profile.ranges.os_controlled == [
+        ProfileRange("KERNEL_CODE_RANGE", 0x1000, 0x1FFF, "Kernel code"),
+        ProfileRange("KERNEL_DATA_RANGE", 0x2000, 0x2FFF, "Kernel data"),
+        ProfileRange("KERNEL_BSS_RANGE", 0x3000, 0x3FFF, "Kernel bss"),
+        ProfileRange("KERNEL_RODATA_RANGE", 0x4000, 0x4FFF, "Kernel rodata"),
+    ]
+    assert not profile.ranges.firmware_related
+    assert not profile.ranges.mmio_related
+    assert not profile.ranges.unknown
+    assert not profile.diagnostics
+
+
+def test_kernel_iomem_parser_reports_malformed_and_invalid_ranges() -> None:
+    profile = KernelIomemParser().parse(
+        "\n".join(
+            [
+                "not a range",
+                "00002000-00001000 : Kernel code",
+            ]
+        )
+    )
+
+    assert profile.ranges == ProfileRanges()
+    assert profile.diagnostics == [
+        ProfileDiagnostic("warning", "Skipped malformed /proc/iomem kernel line 1: not a range"),
+        ProfileDiagnostic(
+            "warning",
+            "Skipped invalid /proc/iomem kernel range at line 2: 00002000-00001000 : Kernel code",
+        ),
+        ProfileDiagnostic(
+            "warning",
+            "/proc/iomem kernel source did not contain matching ranges",
+        ),
+    ]
+
+
+def test_kernel_iomem_parser_reports_empty_or_non_matching_source() -> None:
+    profile = KernelIomemParser().parse("00001000-00001fff : System RAM")
+
+    assert profile.ranges == ProfileRanges()
+    assert profile.diagnostics == [
+        ProfileDiagnostic(
+            "warning",
+            "/proc/iomem kernel source did not contain matching ranges",
+        )
     ]
 
 

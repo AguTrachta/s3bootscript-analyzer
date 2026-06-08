@@ -236,6 +236,63 @@ def test_main_generates_proc_iomem_profile_to_file(
     ]
 
 
+def test_main_generates_kernel_iomem_profile_to_stdout(
+    capsys: CaptureFixture[str],
+    monkeypatch: MonkeyPatch,
+) -> None:
+    _patch_proc_iomem_reader(monkeypatch, "00001000-00001fff : Kernel code\n")
+
+    exit_code = main(["--generate-profile", "kernel"])
+    captured = capsys.readouterr()
+
+    assert exit_code == EXIT_SUCCESS
+    assert json.loads(captured.out) == {
+        "source": "proc_iomem_kernel",
+        "ranges": {
+            "os_controlled": [
+                {
+                    "name": "KERNEL_CODE_RANGE",
+                    "start": 4096,
+                    "end": 8191,
+                    "source_label": "Kernel code",
+                }
+            ],
+            "firmware_related": [],
+            "mmio_related": [],
+            "unknown": [],
+        },
+        "diagnostics": [],
+        "schema_version": 1,
+    }
+
+
+def test_main_generates_kernel_iomem_profile_to_file(
+    tmp_path: Path,
+    monkeypatch: MonkeyPatch,
+) -> None:
+    output_path = tmp_path / "kernel-profile.json"
+    _patch_proc_iomem_reader(monkeypatch, "00002000-00002fff : Kernel data\n")
+
+    exit_code = main(
+        [
+            "--generate-profile",
+            "kernel",
+            "--profile-output",
+            str(output_path),
+        ]
+    )
+
+    assert exit_code == EXIT_SUCCESS
+    assert json.loads(output_path.read_text(encoding="utf-8"))["ranges"]["os_controlled"] == [
+        {
+            "name": "KERNEL_DATA_RANGE",
+            "start": 8192,
+            "end": 12287,
+            "source_label": "Kernel data",
+        }
+    ]
+
+
 def _patch_successful_disassembler(
     monkeypatch: MonkeyPatch,
     output: str = "rendered\n",
@@ -256,7 +313,7 @@ def _patch_successful_disassembler(
 
 def _patch_proc_iomem_reader(monkeypatch: MonkeyPatch, raw_text: str) -> None:
     class FakeProcIomemReader:
-        def __init__(self, _runner: object) -> None:
+        def __init__(self, _runner: object, **_kwargs: object) -> None:
             pass
 
         def read(self) -> str:
