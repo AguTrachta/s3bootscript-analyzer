@@ -82,7 +82,7 @@ Generate a kernel-only profile:
 
 ```bash
 poetry run s3bootscript-analyzer \
-  --generate-profile proc-iomem-kernel \
+  --generate-profile kernel \
   --profile-output /tmp/proc-iomem-kernel-profile.json
 ```
 
