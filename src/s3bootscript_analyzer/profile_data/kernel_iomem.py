@@ -3,9 +3,12 @@
 from __future__ import annotations
 
 import re
+from dataclasses import dataclass
+from pathlib import Path
 from re import Match
 
-from s3bootscript_analyzer.profile_data.contracts import ProfileParser
+from s3bootscript_analyzer.profile_data.commands import CommandSpec, SubprocessRunner
+from s3bootscript_analyzer.profile_data.contracts import ProfileLoader
 from s3bootscript_analyzer.profile_data.models import (
     PlatformProfile,
     ProfileDiagnostic,
@@ -20,22 +23,40 @@ _NAME_MAP = {
     "Kernel rodata": "KERNEL_RODATA_RANGE",
 }
 
+PROC_IOMEM_PATH = Path("/proc/iomem")
 KERNEL_IOMEM_PATTERN = r"Kernel code|Kernel data|Kernel bss|Kernel rodata"
 KERNEL_IOMEM_SOURCE = "proc_iomem_kernel"
 WARNING_LEVEL = "warning"
 IOMEM_RANGE_RE = re.compile(r"^\s*([0-9a-fA-F]+)-([0-9a-fA-F]+)\s*:\s*(.+?)\s*$")
 
 
-class KernelIomemParser(ProfileParser):
+@dataclass(frozen=True)
+class KernelProfileLoader(ProfileLoader):
     """Parse kernel-specific procfs iomem text into a platform profile."""
 
-    def parse(self, raw_text: str) -> PlatformProfile:
+    runner: SubprocessRunner
+    source_path: Path = PROC_IOMEM_PATH
+    pattern: str = KERNEL_IOMEM_PATTERN
+
+    def load(self) -> PlatformProfile:
+        raw_text = self._read()
         ranges, diagnostics = _parse_kernel_ranges(raw_text)
         return PlatformProfile(
             source=KERNEL_IOMEM_SOURCE,
             ranges=ranges,
             diagnostics=diagnostics,
         )
+
+    def _read(self) -> str:
+        proc = self.runner.run(
+            CommandSpec(
+                argv=["grep", "-Ei", self.pattern, str(self.source_path)],
+                capture_output=True,
+                sudo=True,
+                allowed_return_codes=(0, 1),  # grep returns 1 if no matches found
+            )
+        )
+        return (proc.stdout or b"").decode("utf-8", errors="ignore")
 
 
 def _parse_kernel_ranges(raw_text: str) -> tuple[ProfileRanges, list[ProfileDiagnostic]]:

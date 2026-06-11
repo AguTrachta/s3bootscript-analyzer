@@ -8,21 +8,12 @@ from pathlib import Path
 from s3bootscript_analyzer.profile_data.models import PlatformProfile
 
 
-class ProfileSourceReader(ABC):
-    """Read raw profile source text."""
+class ProfileLoader(ABC):
+    """Load a platform profile from a concrete source."""
 
     @abstractmethod
-    def read(self) -> str:
-        """Read raw profile source text."""
-        raise NotImplementedError
-
-
-class ProfileParser(ABC):
-    """Parse raw profile source text into a platform profile."""
-
-    @abstractmethod
-    def parse(self, raw_text: str) -> PlatformProfile:
-        """Parse raw profile source text into a platform profile."""
+    def load(self) -> PlatformProfile:
+        """Load and parse a platform profile."""
         raise NotImplementedError
 
 

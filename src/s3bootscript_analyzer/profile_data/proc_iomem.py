@@ -7,7 +7,7 @@ from dataclasses import dataclass
 from pathlib import Path
 
 from s3bootscript_analyzer.profile_data.commands import CommandSpec, SubprocessRunner
-from s3bootscript_analyzer.profile_data.contracts import ProfileParser, ProfileSourceReader
+from s3bootscript_analyzer.profile_data.contracts import ProfileLoader
 from s3bootscript_analyzer.profile_data.models import (
     PlatformProfile,
     ProfileDiagnostic,
@@ -34,14 +34,23 @@ NumberedLine = tuple[int, str]
 
 
 @dataclass(frozen=True)
-class ProcIomemReader(ProfileSourceReader):
-    """Read raw text from a procfs iomem source."""
+class ProcIomemProfileLoader(ProfileLoader):
+    """Load a platform profile from the Linux /proc/iomem interface."""
 
     runner: SubprocessRunner
     source_path: Path = PROC_IOMEM_PATH
     pattern: str = IOMEM_PROFILE_PATTERN
 
-    def read(self) -> str:
+    def load(self) -> PlatformProfile:
+        raw_text = self._read()
+        ranges, diagnostics = _parse_iomem_ranges(raw_text)
+        return PlatformProfile(
+            source=PROC_IOMEM_SOURCE,
+            ranges=ranges,
+            diagnostics=diagnostics,
+        )
+
+    def _read(self) -> str:
         proc = self.runner.run(
             CommandSpec(
                 argv=["grep", "-Ei", self.pattern, str(self.source_path)],
@@ -51,18 +60,6 @@ class ProcIomemReader(ProfileSourceReader):
             )
         )
         return (proc.stdout or b"").decode("utf-8", errors="ignore")
-
-
-class ProcIomemParser(ProfileParser):
-    """Parse procfs iomem text into a platform profile."""
-
-    def parse(self, raw_text: str) -> PlatformProfile:
-        ranges, diagnostics = _parse_iomem_ranges(raw_text)
-        return PlatformProfile(
-            source=PROC_IOMEM_SOURCE,
-            ranges=ranges,
-            diagnostics=diagnostics,
-        )
 
 
 def _parse_iomem_ranges(raw_text: str) -> tuple[ProfileRanges, list[ProfileDiagnostic]]:

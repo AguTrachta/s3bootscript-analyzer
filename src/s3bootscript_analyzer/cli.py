@@ -13,13 +13,12 @@ from pathlib import Path
 from s3bootscript_analyzer.application import build_default_disassembler
 from s3bootscript_analyzer.errors import BootScriptAnalyzerError
 from s3bootscript_analyzer.profile_data import (
-    KERNEL_IOMEM_PATTERN,
     JsonProfileWriter,
-    KernelIomemParser,
-    ProcIomemParser,
-    ProcIomemReader,
+    KernelProfileLoader,
+    ProcIomemProfileLoader,
 )
 from s3bootscript_analyzer.profile_data.commands import SubprocessRunner
+from s3bootscript_analyzer.profile_data.kernel_iomem import KernelProfileLoader
 from s3bootscript_analyzer.reporting import (
     BootScriptRenderer,
     JsonIrRenderer,
@@ -127,7 +126,7 @@ def _generate_proc_iomem_profile(
 ) -> int:
     writer = JsonProfileWriter()
     try:
-        profile = ProcIomemParser().parse(ProcIomemReader(SubprocessRunner()).read())
+        profile = ProcIomemProfileLoader(SubprocessRunner()).load()
         if profile_output is None:
             print(writer.render(profile), end="")
         else:
@@ -154,8 +153,7 @@ def _generate_kernel_iomem_profile(
 ) -> int:
     writer = JsonProfileWriter()
     try:
-        raw_text = ProcIomemReader(SubprocessRunner(), pattern=KERNEL_IOMEM_PATTERN).read()
-        profile = KernelIomemParser().parse(raw_text)
+        profile = KernelProfileLoader(SubprocessRunner()).load()
         if profile_output is None:
             print(writer.render(profile), end="")
         else:
