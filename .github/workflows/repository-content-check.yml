@@ -1,4 +1,4 @@
-name: Content Validation
+name: Repository Content Check
 
 on:
   pull_request:
@@ -7,7 +7,7 @@ on:
       - main
 
 jobs:
-  content-validation:
+  repository-content-check:
     runs-on: ubuntu-latest
 
     steps:
