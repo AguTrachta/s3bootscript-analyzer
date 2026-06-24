@@ -38,6 +38,9 @@ jobs:
       - name: Install ShellCheck
         run: sudo apt-get update && sudo apt-get install --yes shellcheck
 
+      - name: Install jq
+        run: sudo apt-get install -y jq
+
       - name: Generate Kaitai parser
         run: scripts/generate-kaitai
 
@@ -56,8 +59,10 @@ jobs:
       - name: Run ShellCheck
         run: shellcheck scripts/*
 
-      - name: Run Radon
-        run: poetry run radon cc src --show-complexity
+      - name: Run Radon and check cyclomatic complexity
+        run: |
+          poetry run radon cc src tests --json --show-complexity > radon-complexity.json
+          scripts/check-radon-complexity radon-complexity.json 4
 
       - name: Run Ruff format check
         run: poetry run ruff format --check src tests
