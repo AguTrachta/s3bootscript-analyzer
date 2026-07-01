@@ -1,29 +1,48 @@
-[tool.poetry]
+[project]
 name = "s3bootscript-analyzer"
 version = "0.1.0"
 description = "Static analysis tooling for UEFI S3 Boot Script binaries."
-authors = ["s3bootscript-analyzer maintainers <maintainers@example.com>"]
-license = "MIT"
+authors = [{ name = "s3bootscript-analyzer maintainers", email = "maintainers@example.com" }]
+requires-python = ">=3.12,<3.13"
 readme = "README.md"
-packages = [{ include = "s3bootscript_analyzer", from = "src" }]
+license = "MIT"
+classifiers = [
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.12",
+]
+dependencies = ["kaitaistruct>=0.11,<0.12"]
 
-[tool.poetry.dependencies]
-python = ">=3.12,<3.13"
-kaitaistruct = ">=0.11,<0.12"
-
-[tool.poetry.scripts]
+[project.scripts]
 s3bootscript-analyzer = "s3bootscript_analyzer.cli:main"
 
-[tool.poetry.group.dev.dependencies]
-bandit = ">=1.7,<2.0"
-codespell = ">=2.3,<3.0"
-mypy = ">=1.10,<2.0"
-pylint = ">=3.2,<4.0"
-pytest = ">=8.2,<9.0"
-radon = ">=6.0,<7.0"
-ruff = ">=0.4,<1.0"
-yamale = ">=5.2,<6.0"
-yamllint = ">=1.35,<2.0"
+[dependency-groups]
+dev = [
+    "bandit>=1.7,<2.0",
+    "codespell>=2.3,<3.0",
+    "mypy>=1.10,<2.0",
+    "pylint>=3.2,<4.0",
+    "pytest>=8.2,<9.0",
+    "radon>=6.0,<7.0",
+    "ruff>=0.4,<1.0",
+    "yamale>=5.2,<6.0",
+    "yamllint>=1.35,<2.0",
+]
+
+[tool.uv]
+default-groups = "all"
+
+[tool.hatch.build.targets.sdist]
+include = ["src/s3bootscript_analyzer"]
+
+[tool.hatch.build.targets.wheel]
+include = ["src/s3bootscript_analyzer"]
+
+[tool.hatch.build.targets.wheel.sources]
+"src/s3bootscript_analyzer" = "s3bootscript_analyzer"
+
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
 
 [tool.mypy]
 python_version = "3.12"
@@ -97,7 +116,3 @@ good-names = ["_", "ex", "fd", "fp", "i", "j"]
 [tool.pytest.ini_options]
 addopts = "-ra"
 testpaths = ["tests"]
-
-[build-system]
-requires = ["poetry-core>=1.9.0"]
-build-backend = "poetry.core.masonry.api"
