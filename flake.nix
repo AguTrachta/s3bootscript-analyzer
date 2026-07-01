@@ -18,8 +18,8 @@
 
           kaitai-struct-compiler
           shellcheck
+          jq
 
-          nodejs_24
           markdownlint-cli2
         ];
 

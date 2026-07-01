@@ -1,0 +1,19 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+uv sync --locked --all-groups
+
+scripts/generate-kaitai
+
+uv run --locked ruff check .
+PYLINTHOME=.pylint.d uv run --locked pylint src tests
+uv run --locked mypy --strict src tests
+uv run --locked bandit -c bandit.yaml -r src
+
+shellcheck scripts/*
+
+uv run --locked radon cc src tests --json --show-complexity > radon-complexity.json
+scripts/check-radon-complexity radon-complexity.json 4
+
+uv run --locked ruff format --check src tests
+uv run --locked pytest
