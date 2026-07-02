@@ -52,6 +52,18 @@
         let
           pkgs = nixpkgs.legacyPackages.${system};
           python = pkgs.python312;
+
+          packageOverlay = final: prev: {
+            s3bootscript-analyzer = prev.s3bootscript-analyzer.overrideAttrs (old: {
+              nativeBuildInputs = (old.nativeBuildInputs or [ ]) ++ [
+                pkgs.kaitai-struct-compiler
+              ];
+
+              preBuild = ''
+                ${pkgs.bash}/bin/bash scripts/generate-kaitai
+              '';
+            });
+          };
         in
         (pkgs.callPackage pyproject-nix.build.packages {
           inherit python;
@@ -59,6 +71,7 @@
           lib.composeManyExtensions [
             pyproject-build-systems.overlays.wheel
             overlay
+            packageOverlay
           ]
         )
       );
