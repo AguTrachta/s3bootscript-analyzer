@@ -1,11 +1,9 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-uv sync --locked --all-groups
-
-uv run --locked codespell
-uv run --locked yamllint .
-uv run --locked yamale -s schemas/rule.schema.yaml rules
-uv run --locked yamale -s schemas/profile.schema.yaml profiles
+codespell
+yamllint .
+yamale -s schemas/rule.schema.yaml rules
+yamale -s schemas/profile.schema.yaml profiles
 
 markdownlint-cli2 "**/*.md"
