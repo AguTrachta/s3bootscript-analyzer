@@ -22,5 +22,5 @@ jobs:
           extra_nix_config: |
             experimental-features = nix-command flakes
 
-      - name: Run repository-content-check
+      - name: Run repository content check
         run: nix develop -c scripts/repository-content-check
