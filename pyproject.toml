@@ -29,20 +29,15 @@ dev = [
 ]
 
 [tool.uv]
-default-groups = "all"
+default-groups = ["dev"]
 
-[tool.hatch.build.targets.sdist]
-include = ["src/s3bootscript_analyzer"]
-
-[tool.hatch.build.targets.wheel]
-include = ["src/s3bootscript_analyzer"]
-
-[tool.hatch.build.targets.wheel.sources]
-"src/s3bootscript_analyzer" = "s3bootscript_analyzer"
+[tool.uv.build-backend]
+module-name = "s3bootscript_analyzer"
+module-root = "src"
 
 [build-system]
-requires = ["hatchling"]
-build-backend = "hatchling.build"
+requires = ["uv_build>=0.11.26,<0.12"]
+build-backend = "uv_build"
 
 [tool.mypy]
 python_version = "3.12"
