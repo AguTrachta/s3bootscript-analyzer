@@ -1,0 +1,9 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+codespell
+yamllint .
+yamale -s schemas/rule.schema.yaml rules
+yamale -s schemas/profile.schema.yaml profiles
+
+markdownlint-cli2 "**/*.md"

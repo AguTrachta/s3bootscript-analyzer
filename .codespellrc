@@ -1,5 +1,5 @@
 [codespell]
-skip = .git,.mypy_cache,.pytest_cache,.ruff_cache,.venv,__pycache__,docs,poetry.lock,src/s3bootscript_analyzer/parsers/generated,samples/binaries
+skip = .git,.mypy_cache,.pytest_cache,.ruff_cache,.venv,__pycache__,docs,uv.lock,src/s3bootscript_analyzer/parsers/generated,samples/binaries
 check-hidden = true
 quiet-level = 2
 ignore-words-list = analizer

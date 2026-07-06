@@ -16,56 +16,11 @@ jobs:
         with:
           lfs: true
 
-      - name: Set up Python 3.12
-        uses: actions/setup-python@v5
+      - name: Install Nix
+        uses: cachix/install-nix-action@v31
         with:
-          python-version: "3.12"
+          extra_nix_config: |
+            experimental-features = nix-command flakes
 
-      - name: Install Kaitai Struct compiler
-        run: |
-          curl --fail --location --show-error \
-            --output /tmp/kaitai-struct-compiler.deb \
-            https://github.com/kaitai-io/kaitai_struct_compiler/releases/download/0.11/kaitai-struct-compiler_0.11_all.deb
-          sudo apt-get update
-          sudo apt-get install --yes /tmp/kaitai-struct-compiler.deb
-
-      - name: Install Poetry
-        run: python -m pip install --upgrade pip poetry
-
-      - name: Install dependencies
-        run: poetry install --no-interaction
-
-      - name: Install ShellCheck
-        run: sudo apt-get update && sudo apt-get install --yes shellcheck
-
-      - name: Install jq
-        run: sudo apt-get install -y jq
-
-      - name: Generate Kaitai parser
-        run: scripts/generate-kaitai
-
-      - name: Run Ruff
-        run: poetry run ruff check .
-
-      - name: Run Pylint
-        run: PYLINTHOME=.pylint.d poetry run pylint src tests
-
-      - name: Run mypy
-        run: poetry run mypy --strict src tests
-
-      - name: Run Bandit
-        run: poetry run bandit -c bandit.yaml -r src
-
-      - name: Run ShellCheck
-        run: shellcheck scripts/*
-
-      - name: Run Radon and check cyclomatic complexity
-        run: |
-          poetry run radon cc src tests --json --show-complexity > radon-complexity.json
-          scripts/check-radon-complexity radon-complexity.json 4
-
-      - name: Run Ruff format check
-        run: poetry run ruff format --check src tests
-
-      - name: Run tests
-        run: poetry run pytest
+      - name: Run quality gate
+        run: nix develop -c scripts/quality-gate
