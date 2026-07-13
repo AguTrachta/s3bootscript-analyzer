@@ -13,12 +13,13 @@ from pathlib import Path
 from s3bootscript_analyzer.application import build_default_disassembler
 from s3bootscript_analyzer.errors import BootScriptAnalyzerError
 from s3bootscript_analyzer.profile_data import (
+    GenerateProfile,
     JsonProfileWriter,
     KernelProfileLoader,
     ProcIomemProfileLoader,
+    ProfileLoader,
 )
 from s3bootscript_analyzer.profile_data.commands import SubprocessRunner
-from s3bootscript_analyzer.profile_data.kernel_iomem import KernelProfileLoader
 from s3bootscript_analyzer.reporting import (
     BootScriptRenderer,
     JsonIrRenderer,
@@ -125,12 +126,9 @@ def _generate_proc_iomem_profile(
     profile_output: Path | None,
 ) -> int:
     writer = JsonProfileWriter()
+    loader = ProcIomemProfileLoader(SubprocessRunner())
     try:
-        profile = ProcIomemProfileLoader(SubprocessRunner()).load()
-        if profile_output is None:
-            print(writer.render(profile), end="")
-        else:
-            writer.write(profile, profile_output)
+        _write_generated_profile(loader, writer, profile_output)
     except BootScriptAnalyzerError as ex:
         _log_analyzer_error(ex)
         print(f"Error: {ex}")
@@ -152,12 +150,9 @@ def _generate_kernel_iomem_profile(
     profile_output: Path | None,
 ) -> int:
     writer = JsonProfileWriter()
+    loader = KernelProfileLoader(SubprocessRunner())
     try:
-        profile = KernelProfileLoader(SubprocessRunner()).load()
-        if profile_output is None:
-            print(writer.render(profile), end="")
-        else:
-            writer.write(profile, profile_output)
+        _write_generated_profile(loader, writer, profile_output)
     except BootScriptAnalyzerError as ex:
         _log_analyzer_error(ex)
         print(f"Error: {ex}")
@@ -173,6 +168,17 @@ def _generate_kernel_iomem_profile(
         )
         return EXIT_FAILURE
     return EXIT_SUCCESS
+
+
+def _write_generated_profile(
+    loader: ProfileLoader,
+    writer: JsonProfileWriter,
+    profile_output: Path | None,
+) -> None:
+    if profile_output is None:
+        print(writer.render(loader.load()), end="")
+        return
+    GenerateProfile(output_path=profile_output, loader=loader, writer=writer).run()
 
 
 def _disassemble(
