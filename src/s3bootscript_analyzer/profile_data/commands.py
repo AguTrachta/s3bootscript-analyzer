@@ -48,30 +48,62 @@ class SubprocessRunner:
         Raises:
             subprocess.CalledProcessError: If the command fails.
         """
-        argv = list(spec.argv)
-        if spec.sudo and (not argv or argv[0] != "sudo"):
-            argv = ["sudo"] + argv
-
+        argv = _command_argv(spec)
         logger.info("Running: %s", " ".join(argv))
-
-        if spec.capture_output:
-            result = subprocess.run(  # nosec B603
-                argv,
-                cwd=str(spec.cwd) if spec.cwd else None,
-                check=False,
-                capture_output=True,
-            )
-        else:
-            stdout = subprocess.DEVNULL if spec.quiet else None
-            result = subprocess.run(  # nosec B603
-                argv,
-                cwd=str(spec.cwd) if spec.cwd else None,
-                check=False,
-                stdout=stdout,
-            )
-
-        if result.returncode not in spec.allowed_return_codes:
-            raise subprocess.CalledProcessError(
-                result.returncode, argv, output=result.stdout, stderr=result.stderr
-            )
+        result = _run_process(spec, argv)
+        _raise_for_unexpected_return_code(spec, argv, result)
         return result
+
+
+def _command_argv(spec: CommandSpec) -> list[str]:
+    argv = list(spec.argv)
+    if _needs_sudo_prefix(spec, argv):
+        return ["sudo", *argv]
+    return argv
+
+
+def _needs_sudo_prefix(spec: CommandSpec, argv: list[str]) -> bool:
+    return spec.sudo and (not argv or argv[0] != "sudo")
+
+
+def _run_process(
+    spec: CommandSpec,
+    argv: list[str],
+) -> subprocess.CompletedProcess[bytes]:
+    if spec.capture_output:
+        return subprocess.run(  # nosec B603
+            argv,
+            cwd=_cwd_text(spec),
+            check=False,
+            capture_output=True,
+        )
+    return subprocess.run(  # nosec B603
+        argv,
+        cwd=_cwd_text(spec),
+        check=False,
+        stdout=_stdout_target(spec),
+    )
+
+
+def _cwd_text(spec: CommandSpec) -> str | None:
+    if spec.cwd is None:
+        return None
+    return str(spec.cwd)
+
+
+def _stdout_target(spec: CommandSpec) -> int | None:
+    if spec.quiet:
+        return subprocess.DEVNULL
+    return None
+
+
+def _raise_for_unexpected_return_code(
+    spec: CommandSpec,
+    argv: list[str],
+    result: subprocess.CompletedProcess[bytes],
+) -> None:
+    if result.returncode in spec.allowed_return_codes:
+        return
+    raise subprocess.CalledProcessError(
+        result.returncode, argv, output=result.stdout, stderr=result.stderr
+    )

@@ -89,11 +89,8 @@ def _parse_kernel_line(
         diagnostics.append(_malformed_line_diagnostic(line_number, line))
         return
 
-    profile_range = _profile_range_from_match(match)
+    profile_range = _valid_profile_range(match, line_number, line, diagnostics)
     if profile_range is None:
-        return
-    if profile_range.start > profile_range.end:
-        diagnostics.append(_invalid_range_diagnostic(line_number, line))
         return
 
     ranges.append(profile_range)
@@ -111,6 +108,21 @@ def _profile_range_from_match(match: Match[str]) -> ProfileRange | None:
         end=int(end_text, 16),
         source_label=source_label,
     )
+
+
+def _valid_profile_range(
+    match: Match[str],
+    line_number: int,
+    line: str,
+    diagnostics: list[ProfileDiagnostic],
+) -> ProfileRange | None:
+    profile_range = _profile_range_from_match(match)
+    if profile_range is None:
+        return None
+    if profile_range.start <= profile_range.end:
+        return profile_range
+    diagnostics.append(_invalid_range_diagnostic(line_number, line))
+    return None
 
 
 def _malformed_line_diagnostic(line_number: int, line: str) -> ProfileDiagnostic:

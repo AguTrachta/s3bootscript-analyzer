@@ -147,7 +147,7 @@ def test_proc_iomem_loader_reports_malformed_and_invalid_ranges() -> None:
         )
     ).load()
 
-    assert profile.ranges == []
+    assert not profile.ranges
     assert profile.diagnostics == [
         ProfileDiagnostic("warning", "Skipped malformed /proc/iomem line 1: not a range"),
         ProfileDiagnostic(
@@ -160,7 +160,7 @@ def test_proc_iomem_loader_reports_malformed_and_invalid_ranges() -> None:
 def test_proc_iomem_loader_reports_empty_matching_source() -> None:
     profile = ProcIomemProfileLoader(runner=CapturingRunner(stdout=b"")).load()
 
-    assert profile.ranges == []
+    assert not profile.ranges
     assert profile.diagnostics == [
         ProfileDiagnostic("warning", "/proc/iomem source did not contain matching ranges")
     ]
@@ -203,7 +203,7 @@ def test_kernel_iomem_loader_reports_malformed_and_invalid_ranges() -> None:
         )
     ).load()
 
-    assert profile.ranges == []
+    assert not profile.ranges
     assert profile.diagnostics == [
         ProfileDiagnostic("warning", "Skipped malformed /proc/iomem kernel line 1: not a range"),
         ProfileDiagnostic(
@@ -222,7 +222,7 @@ def test_kernel_iomem_loader_reports_empty_or_non_matching_source() -> None:
         runner=CapturingRunner(stdout=b"00001000-00001fff : System RAM")
     ).load()
 
-    assert profile.ranges == []
+    assert not profile.ranges
     assert profile.diagnostics == [
         ProfileDiagnostic(
             "warning",
