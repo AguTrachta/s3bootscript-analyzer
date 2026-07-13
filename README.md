@@ -20,14 +20,14 @@ platform-specific address ranges that need manual review.
 
 ## Requirements
 
+- Nix with flakes enabled
 - Python 3.12
-- Poetry
 - GNU/Linux for `/proc/iomem` profile generation
 
-Install dependencies:
+Enter the development environment:
 
 ```bash
-poetry install --no-interaction
+nix develop
 ```
 
 ## Disassemble A Boot Script
@@ -35,14 +35,14 @@ poetry install --no-interaction
 Print a readable text representation:
 
 ```bash
-poetry run s3bootscript-analyzer \
+nix develop -c s3bootscript-analyzer \
   --input-binary samples/binaries/s3bootscript.bin
 ```
 
 Write JSON output:
 
 ```bash
-poetry run s3bootscript-analyzer \
+nix develop -c s3bootscript-analyzer \
   --input-binary samples/binaries/s3bootscript.bin \
   --output-format json \
   --output-report /tmp/s3bootscript.json
@@ -51,7 +51,7 @@ poetry run s3bootscript-analyzer \
 Print semantic IR:
 
 ```bash
-poetry run s3bootscript-analyzer \
+nix develop -c s3bootscript-analyzer \
   --input-binary samples/binaries/s3bootscript.bin \
   --output-format semantic
 ```
@@ -67,13 +67,13 @@ call 0x12345678
 ## Generate Platform Profiles
 
 The analyzer can generate JSON profiles from Linux `/proc/iomem`. These profiles
-describe memory ranges that later analysis can use to decide whether an opcode
-targets OS-controlled memory, firmware-related memory, MMIO, or unknown regions.
+describe memory ranges that later analysis can match against platform-specific
+addresses.
 
 Generate a general `/proc/iomem` profile:
 
 ```bash
-poetry run s3bootscript-analyzer \
+nix develop -c s3bootscript-analyzer \
   --generate-profile proc-iomem \
   --profile-output /tmp/proc-iomem-profile.json
 ```
@@ -81,7 +81,7 @@ poetry run s3bootscript-analyzer \
 Generate a kernel-only profile:
 
 ```bash
-poetry run s3bootscript-analyzer \
+nix develop -c s3bootscript-analyzer \
   --generate-profile kernel \
   --profile-output /tmp/proc-iomem-kernel-profile.json
 ```
@@ -96,12 +96,7 @@ Generated profiles use this structure:
 ```json
 {
   "source": "proc_iomem",
-  "ranges": {
-    "os_controlled": [],
-    "firmware_related": [],
-    "mmio_related": [],
-    "unknown": []
-  },
+  "ranges": [],
   "diagnostics": [],
   "schema_version": 1
 }
