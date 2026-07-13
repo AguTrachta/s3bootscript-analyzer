@@ -1,0 +1,23 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+report_path="${1:?Usage: check-radon-complexity <radon-json-file> [max-complexity]}"
+max_complexity="${2:-4}"
+
+violations="$(
+    jq -r --argjson max "$max_complexity" '
+        to_entries[]
+        | .key as $file
+        | .value[]
+        | select(.complexity > $max)
+        | "\($file):\(.lineno) \(.name) complexity=\(.complexity) max=\($max)"
+    ' "$report_path"
+)"
+
+if [[ -n "$violations" ]]; then
+    echo "Cyclomatic complexity violations found:"
+    echo "$violations"
+    exit 1
+else
+    echo "No cyclomatic complexity violations found."
+fi

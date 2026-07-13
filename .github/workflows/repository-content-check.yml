@@ -1,4 +1,4 @@
-name: Quality Gate
+name: Repository Content Check
 
 on:
   pull_request:
@@ -7,7 +7,7 @@ on:
       - main
 
 jobs:
-  quality-gate:
+  repository-content-check:
     runs-on: ubuntu-latest
 
     steps:
@@ -22,5 +22,5 @@ jobs:
           extra_nix_config: |
             experimental-features = nix-command flakes
 
-      - name: Run quality gate
-        run: nix develop -c scripts/quality-gate
+      - name: Run repository content check
+        run: nix develop -c scripts/repository-content-check

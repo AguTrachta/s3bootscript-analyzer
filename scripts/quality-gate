@@ -1,0 +1,17 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+scripts/generate-kaitai
+
+ruff check .
+PYLINTHOME=.pylint.d pylint src tests
+mypy --strict src tests
+bandit -c bandit.yaml -r src
+
+shellcheck scripts/*
+
+radon cc src tests --json --show-complexity > radon-complexity.json
+scripts/check-radon-complexity radon-complexity.json 4
+
+ruff format --check src tests
+pytest
