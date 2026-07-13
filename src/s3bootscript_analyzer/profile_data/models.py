@@ -16,15 +16,9 @@ class ProfileRange:
     end: int
     source_label: str
 
-
-@dataclass(frozen=True)
-class ProfileRanges:
-    """Grouped profile address ranges."""
-
-    os_controlled: list[ProfileRange] = field(default_factory=list)
-    firmware_related: list[ProfileRange] = field(default_factory=list)
-    mmio_related: list[ProfileRange] = field(default_factory=list)
-    unknown: list[ProfileRange] = field(default_factory=list)
+    def contains(self, address: int) -> bool:
+        """Return whether the address belongs to this inclusive range."""
+        return self.start <= address <= self.end
 
 
 @dataclass(frozen=True)
@@ -40,6 +34,6 @@ class PlatformProfile:
     """Generated platform profile used by later analysis stages."""
 
     source: str
-    ranges: ProfileRanges
+    ranges: list[ProfileRange] = field(default_factory=list)
     diagnostics: list[ProfileDiagnostic] = field(default_factory=list)
     schema_version: int = DEFAULT_SCHEMA_VERSION

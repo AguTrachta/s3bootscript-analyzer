@@ -16,7 +16,6 @@ from s3bootscript_analyzer.profile_data.models import (
     PlatformProfile,
     ProfileDiagnostic,
     ProfileRange,
-    ProfileRanges,
 )
 from s3bootscript_analyzer.profile_data.proc_iomem import ProcIomemProfileLoader
 from s3bootscript_analyzer.profile_data.writers import JsonProfileWriter
@@ -32,6 +31,5 @@ __all__ = [
     "ProfileDiagnostic",
     "ProfileLoader",
     "ProfileRange",
-    "ProfileRanges",
     "ProfileWriter",
 ]

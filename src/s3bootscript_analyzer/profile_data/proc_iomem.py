@@ -12,7 +12,6 @@ from s3bootscript_analyzer.profile_data.models import (
     PlatformProfile,
     ProfileDiagnostic,
     ProfileRange,
-    ProfileRanges,
 )
 
 PROC_IOMEM_PATH = Path("/proc/iomem")
@@ -20,16 +19,6 @@ IOMEM_PROFILE_PATTERN = r"Kernel|ACPI|reserved|System RAM|PCI Bus"
 IOMEM_RANGE_RE = re.compile(r"^\s*([0-9a-fA-F]+)-([0-9a-fA-F]+)\s*:\s*(.+?)\s*$")
 PROC_IOMEM_SOURCE = "proc_iomem"
 WARNING_LEVEL = "warning"
-OS_CONTROLLED_LABELS = (
-    "system ram",
-    "kernel code",
-    "kernel data",
-    "kernel bss",
-    "kernel rodata",
-)
-OS_CONTROLLED_PREFIXES = ("kernel ",)
-FIRMWARE_RELATED_LABELS = ("acpi", "reserved")
-MMIO_RELATED_LABELS = ("pci bus", "pcie", "mmio")
 NumberedLine = tuple[int, str]
 
 
@@ -62,8 +51,8 @@ class ProcIomemProfileLoader(ProfileLoader):
         return (proc.stdout or b"").decode("utf-8", errors="ignore")
 
 
-def _parse_iomem_ranges(raw_text: str) -> tuple[ProfileRanges, list[ProfileDiagnostic]]:
-    ranges = ProfileRanges()
+def _parse_iomem_ranges(raw_text: str) -> tuple[list[ProfileRange], list[ProfileDiagnostic]]:
+    ranges: list[ProfileRange] = []
     diagnostics: list[ProfileDiagnostic] = []
 
     for numbered_line in enumerate(raw_text.splitlines(), start=1):
@@ -82,7 +71,7 @@ def _parse_iomem_ranges(raw_text: str) -> tuple[ProfileRanges, list[ProfileDiagn
 
 def _parse_iomem_line(
     numbered_line: NumberedLine,
-    ranges: ProfileRanges,
+    ranges: list[ProfileRange],
     diagnostics: list[ProfileDiagnostic],
 ) -> None:
     line_number, line = numbered_line
@@ -95,7 +84,7 @@ def _parse_iomem_line(
     if profile_range.start > profile_range.end:
         diagnostics.append(_invalid_range_diagnostic(line_number, line))
         return
-    _append_range(ranges, profile_range)
+    ranges.append(profile_range)
 
 
 def _parse_profile_range(line: str) -> ProfileRange | None:
@@ -109,36 +98,6 @@ def _parse_profile_range(line: str) -> ProfileRange | None:
         end=int(end_text, 16),
         source_label=label,
     )
-
-
-def _append_range(ranges: ProfileRanges, profile_range: ProfileRange) -> None:
-    normalized_label = profile_range.source_label.casefold()
-    if _is_os_controlled(normalized_label):
-        ranges.os_controlled.append(profile_range)
-        return
-    if _is_firmware_related(normalized_label):
-        ranges.firmware_related.append(profile_range)
-        return
-    if _is_mmio_related(normalized_label):
-        ranges.mmio_related.append(profile_range)
-        return
-    ranges.unknown.append(profile_range)
-
-
-def _is_os_controlled(label: str) -> bool:
-    return label.startswith(OS_CONTROLLED_PREFIXES) or _contains_any(label, OS_CONTROLLED_LABELS)
-
-
-def _is_firmware_related(label: str) -> bool:
-    return _contains_any(label, FIRMWARE_RELATED_LABELS)
-
-
-def _is_mmio_related(label: str) -> bool:
-    return _contains_any(label, MMIO_RELATED_LABELS)
-
-
-def _contains_any(label: str, fragments: tuple[str, ...]) -> bool:
-    return any(fragment in label for fragment in fragments)
 
 
 def _malformed_line_diagnostic(line_number: int, line: str) -> ProfileDiagnostic:

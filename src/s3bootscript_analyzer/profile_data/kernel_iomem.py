@@ -13,7 +13,6 @@ from s3bootscript_analyzer.profile_data.models import (
     PlatformProfile,
     ProfileDiagnostic,
     ProfileRange,
-    ProfileRanges,
 )
 
 _NAME_MAP = {
@@ -59,14 +58,14 @@ class KernelProfileLoader(ProfileLoader):
         return (proc.stdout or b"").decode("utf-8", errors="ignore")
 
 
-def _parse_kernel_ranges(raw_text: str) -> tuple[ProfileRanges, list[ProfileDiagnostic]]:
-    ranges = ProfileRanges()
+def _parse_kernel_ranges(raw_text: str) -> tuple[list[ProfileRange], list[ProfileDiagnostic]]:
+    ranges: list[ProfileRange] = []
     diagnostics: list[ProfileDiagnostic] = []
 
     for line_number, line in enumerate(raw_text.splitlines(), start=1):
         _parse_kernel_line(line_number, line, ranges, diagnostics)
 
-    if not raw_text.strip() or not ranges.os_controlled:
+    if not raw_text.strip() or not ranges:
         diagnostics.append(
             ProfileDiagnostic(
                 level=WARNING_LEVEL,
@@ -80,7 +79,7 @@ def _parse_kernel_ranges(raw_text: str) -> tuple[ProfileRanges, list[ProfileDiag
 def _parse_kernel_line(
     line_number: int,
     line: str,
-    ranges: ProfileRanges,
+    ranges: list[ProfileRange],
     diagnostics: list[ProfileDiagnostic],
 ) -> None:
     if not line.strip():
@@ -97,7 +96,7 @@ def _parse_kernel_line(
         diagnostics.append(_invalid_range_diagnostic(line_number, line))
         return
 
-    ranges.os_controlled.append(profile_range)
+    ranges.append(profile_range)
 
 
 def _profile_range_from_match(match: Match[str]) -> ProfileRange | None:

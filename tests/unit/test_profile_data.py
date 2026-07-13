@@ -9,29 +9,20 @@ from s3bootscript_analyzer.profile_data import (
     DEFAULT_SCHEMA_VERSION,
     GenerateProfile,
     JsonProfileWriter,
-    KernelIomemParser,
+    KernelProfileLoader,
     PlatformProfile,
-    ProcIomemParser,
-    ProcIomemReader,
+    ProcIomemProfileLoader,
     ProfileDiagnostic,
-    ProfileParser,
+    ProfileLoader,
     ProfileRange,
-    ProfileRanges,
-    ProfileSourceReader,
     ProfileWriter,
 )
 from s3bootscript_analyzer.profile_data.commands import CommandSpec, SubprocessRunner
 
 
-class StaticProfileReader(ProfileSourceReader):
-    def read(self) -> str:
-        return "raw profile source"
-
-
-class StaticProfileParser(ProfileParser):
-    def parse(self, raw_text: str) -> PlatformProfile:
-        assert raw_text == "raw profile source"
-        return PlatformProfile(source="test", ranges=ProfileRanges())
+class StaticProfileLoader(ProfileLoader):
+    def load(self) -> PlatformProfile:
+        return PlatformProfile(source="test")
 
 
 class CapturingProfileWriter(ProfileWriter):
@@ -45,24 +36,32 @@ class CapturingProfileWriter(ProfileWriter):
 
 
 def test_platform_profile_uses_default_schema_version() -> None:
-    profile = PlatformProfile(source="test", ranges=ProfileRanges())
+    profile = PlatformProfile(source="test")
 
     assert profile.schema_version == DEFAULT_SCHEMA_VERSION
 
 
-def test_generate_profile_coordinates_reader_parser_and_writer(tmp_path: Path) -> None:
+def test_profile_range_contains_inclusive_boundaries() -> None:
+    profile_range = ProfileRange("System RAM", 0x1000, 0x1FFF, "System RAM")
+
+    assert profile_range.contains(0x1000)
+    assert profile_range.contains(0x1FFF)
+    assert not profile_range.contains(0x0FFF)
+    assert not profile_range.contains(0x2000)
+
+
+def test_generate_profile_coordinates_loader_and_writer(tmp_path: Path) -> None:
     output_path = tmp_path / "profile.json"
     writer = CapturingProfileWriter()
     generator = GenerateProfile(
         output_path=output_path,
-        reader=StaticProfileReader(),
-        parser=StaticProfileParser(),
+        loader=StaticProfileLoader(),
         writer=writer,
     )
 
     generator.run()
 
-    assert writer.profile == PlatformProfile(source="test", ranges=ProfileRanges())
+    assert writer.profile == PlatformProfile(source="test")
     assert writer.output_path == output_path
 
 
@@ -88,62 +87,67 @@ def test_subprocess_runner_rejects_unexpected_return_code() -> None:
         )
 
 
-def test_proc_iomem_reader_runs_grep_and_decodes_stdout() -> None:
+def test_proc_iomem_loader_runs_grep_and_decodes_stdout() -> None:
     runner = CapturingRunner(stdout=b"00000000-00000fff : System RAM\n")
-    reader = ProcIomemReader(runner=runner, source_path=Path("/tmp/iomem"))
+    loader = ProcIomemProfileLoader(runner=runner, source_path=Path("/tmp/iomem"))
 
-    assert reader.read() == "00000000-00000fff : System RAM\n"
+    profile = loader.load()
+
+    assert profile.ranges == [ProfileRange("System RAM", 0x0, 0xFFF, "System RAM")]
     assert runner.spec is not None
-    assert runner.spec.argv == ["grep", "-Ei", reader.pattern, "/tmp/iomem"]
+    assert runner.spec.argv == ["grep", "-Ei", loader.pattern, "/tmp/iomem"]
     assert runner.spec.capture_output is True
+    assert runner.spec.sudo is True
     assert runner.spec.allowed_return_codes == (0, 1)
 
 
-def test_proc_iomem_reader_returns_empty_text_when_grep_finds_no_matches() -> None:
-    reader = ProcIomemReader(runner=CapturingRunner(returncode=1, stdout=b""))
+def test_proc_iomem_loader_returns_diagnostic_when_grep_finds_no_matches() -> None:
+    loader = ProcIomemProfileLoader(runner=CapturingRunner(returncode=1, stdout=b""))
 
-    assert reader.read() == ""
+    assert loader.load().diagnostics == [
+        ProfileDiagnostic("warning", "/proc/iomem source did not contain matching ranges")
+    ]
 
 
-def test_proc_iomem_parser_groups_known_ranges_and_unknown_ranges() -> None:
-    profile = ProcIomemParser().parse(
-        "\n".join(
-            [
-                "00001000-00001fff : System RAM",
-                "  00002000-00002fff : Kernel code",
-                "00003000-00003fff : ACPI Tables",
-                "00004000-00004fff : PCI Bus 0000:00",
-                "00005000-00005fff : Crash kernel",
-            ]
+def test_proc_iomem_loader_preserves_matching_ranges() -> None:
+    profile = ProcIomemProfileLoader(
+        runner=CapturingRunner(
+            stdout="\n".join(
+                [
+                    "00001000-00001fff : System RAM",
+                    "  00002000-00002fff : Kernel code",
+                    "00003000-00003fff : ACPI Tables",
+                    "00004000-00004fff : PCI Bus 0000:00",
+                    "00005000-00005fff : Crash kernel",
+                ]
+            ).encode()
         )
-    )
+    ).load()
 
     assert profile.source == "proc_iomem"
-    assert profile.ranges.os_controlled == [
+    assert profile.ranges == [
         ProfileRange("System RAM", 0x1000, 0x1FFF, "System RAM"),
         ProfileRange("Kernel code", 0x2000, 0x2FFF, "Kernel code"),
+        ProfileRange("ACPI Tables", 0x3000, 0x3FFF, "ACPI Tables"),
+        ProfileRange("PCI Bus 0000:00", 0x4000, 0x4FFF, "PCI Bus 0000:00"),
+        ProfileRange("Crash kernel", 0x5000, 0x5FFF, "Crash kernel"),
     ]
-    assert profile.ranges.firmware_related == [
-        ProfileRange("ACPI Tables", 0x3000, 0x3FFF, "ACPI Tables")
-    ]
-    assert profile.ranges.mmio_related == [
-        ProfileRange("PCI Bus 0000:00", 0x4000, 0x4FFF, "PCI Bus 0000:00")
-    ]
-    assert profile.ranges.unknown == [ProfileRange("Crash kernel", 0x5000, 0x5FFF, "Crash kernel")]
     assert not profile.diagnostics
 
 
-def test_proc_iomem_parser_reports_malformed_and_invalid_ranges() -> None:
-    profile = ProcIomemParser().parse(
-        "\n".join(
-            [
-                "not a range",
-                "00002000-00001000 : System RAM",
-            ]
+def test_proc_iomem_loader_reports_malformed_and_invalid_ranges() -> None:
+    profile = ProcIomemProfileLoader(
+        runner=CapturingRunner(
+            stdout="\n".join(
+                [
+                    "not a range",
+                    "00002000-00001000 : System RAM",
+                ]
+            ).encode()
         )
-    )
+    ).load()
 
-    assert profile.ranges == ProfileRanges()
+    assert profile.ranges == []
     assert profile.diagnostics == [
         ProfileDiagnostic("warning", "Skipped malformed /proc/iomem line 1: not a range"),
         ProfileDiagnostic(
@@ -153,52 +157,53 @@ def test_proc_iomem_parser_reports_malformed_and_invalid_ranges() -> None:
     ]
 
 
-def test_proc_iomem_parser_reports_empty_matching_source() -> None:
-    profile = ProcIomemParser().parse("")
+def test_proc_iomem_loader_reports_empty_matching_source() -> None:
+    profile = ProcIomemProfileLoader(runner=CapturingRunner(stdout=b"")).load()
 
-    assert profile.ranges == ProfileRanges()
+    assert profile.ranges == []
     assert profile.diagnostics == [
         ProfileDiagnostic("warning", "/proc/iomem source did not contain matching ranges")
     ]
 
 
-def test_kernel_iomem_parser_maps_kernel_labels_to_profile_names() -> None:
-    profile = KernelIomemParser().parse(
-        "\n".join(
-            [
-                "00001000-00001fff : Kernel code",
-                "00002000-00002fff : Kernel data",
-                "00003000-00003fff : Kernel bss",
-                "00004000-00004fff : Kernel rodata",
-                "00005000-00005fff : System RAM",
-            ]
+def test_kernel_iomem_loader_maps_kernel_labels_to_profile_names() -> None:
+    profile = KernelProfileLoader(
+        runner=CapturingRunner(
+            stdout="\n".join(
+                [
+                    "00001000-00001fff : Kernel code",
+                    "00002000-00002fff : Kernel data",
+                    "00003000-00003fff : Kernel bss",
+                    "00004000-00004fff : Kernel rodata",
+                    "00005000-00005fff : System RAM",
+                ]
+            ).encode()
         )
-    )
+    ).load()
 
     assert profile.source == "proc_iomem_kernel"
-    assert profile.ranges.os_controlled == [
+    assert profile.ranges == [
         ProfileRange("KERNEL_CODE_RANGE", 0x1000, 0x1FFF, "Kernel code"),
         ProfileRange("KERNEL_DATA_RANGE", 0x2000, 0x2FFF, "Kernel data"),
         ProfileRange("KERNEL_BSS_RANGE", 0x3000, 0x3FFF, "Kernel bss"),
         ProfileRange("KERNEL_RODATA_RANGE", 0x4000, 0x4FFF, "Kernel rodata"),
     ]
-    assert not profile.ranges.firmware_related
-    assert not profile.ranges.mmio_related
-    assert not profile.ranges.unknown
     assert not profile.diagnostics
 
 
-def test_kernel_iomem_parser_reports_malformed_and_invalid_ranges() -> None:
-    profile = KernelIomemParser().parse(
-        "\n".join(
-            [
-                "not a range",
-                "00002000-00001000 : Kernel code",
-            ]
+def test_kernel_iomem_loader_reports_malformed_and_invalid_ranges() -> None:
+    profile = KernelProfileLoader(
+        runner=CapturingRunner(
+            stdout="\n".join(
+                [
+                    "not a range",
+                    "00002000-00001000 : Kernel code",
+                ]
+            ).encode()
         )
-    )
+    ).load()
 
-    assert profile.ranges == ProfileRanges()
+    assert profile.ranges == []
     assert profile.diagnostics == [
         ProfileDiagnostic("warning", "Skipped malformed /proc/iomem kernel line 1: not a range"),
         ProfileDiagnostic(
@@ -212,10 +217,12 @@ def test_kernel_iomem_parser_reports_malformed_and_invalid_ranges() -> None:
     ]
 
 
-def test_kernel_iomem_parser_reports_empty_or_non_matching_source() -> None:
-    profile = KernelIomemParser().parse("00001000-00001fff : System RAM")
+def test_kernel_iomem_loader_reports_empty_or_non_matching_source() -> None:
+    profile = KernelProfileLoader(
+        runner=CapturingRunner(stdout=b"00001000-00001fff : System RAM")
+    ).load()
 
-    assert profile.ranges == ProfileRanges()
+    assert profile.ranges == []
     assert profile.diagnostics == [
         ProfileDiagnostic(
             "warning",
@@ -228,28 +235,21 @@ def test_json_profile_writer_writes_profile_json(tmp_path: Path) -> None:
     output_path = tmp_path / "profile.json"
     profile = PlatformProfile(
         source="proc_iomem",
-        ranges=ProfileRanges(
-            os_controlled=[ProfileRange("System RAM", 0x1000, 0x1FFF, "System RAM")]
-        ),
+        ranges=[ProfileRange("System RAM", 0x1000, 0x1FFF, "System RAM")],
     )
 
     JsonProfileWriter().write(profile, output_path)
 
     assert json.loads(output_path.read_text(encoding="utf-8")) == {
         "source": "proc_iomem",
-        "ranges": {
-            "os_controlled": [
-                {
-                    "name": "System RAM",
-                    "start": 4096,
-                    "end": 8191,
-                    "source_label": "System RAM",
-                }
-            ],
-            "firmware_related": [],
-            "mmio_related": [],
-            "unknown": [],
-        },
+        "ranges": [
+            {
+                "name": "System RAM",
+                "start": 4096,
+                "end": 8191,
+                "source_label": "System RAM",
+            }
+        ],
         "diagnostics": [],
         "schema_version": DEFAULT_SCHEMA_VERSION,
     }
