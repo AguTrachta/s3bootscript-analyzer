@@ -1,3 +1,4 @@
+import json
 from pathlib import Path
 
 import pytest
@@ -178,6 +179,126 @@ def test_main_debug_logs_expected_analyzer_error_cause(
     assert "Debug: analyzer error cause type=ValueError message=root cause" in captured.err
 
 
+def test_main_generates_proc_iomem_profile_to_stdout(
+    capsys: CaptureFixture[str],
+    monkeypatch: MonkeyPatch,
+) -> None:
+    _patch_profile_loader(
+        monkeypatch,
+        "ProcIomemProfileLoader",
+        "00001000-00001fff : System RAM\n",
+    )
+
+    exit_code = main(["--generate-profile", "proc-iomem"])
+    captured = capsys.readouterr()
+
+    assert exit_code == EXIT_SUCCESS
+    assert json.loads(captured.out) == {
+        "source": "proc_iomem",
+        "ranges": [
+            {
+                "name": "System RAM",
+                "start": 4096,
+                "end": 8191,
+                "source_label": "System RAM",
+            }
+        ],
+        "diagnostics": [],
+        "schema_version": 1,
+    }
+
+
+def test_main_generates_proc_iomem_profile_to_file(
+    tmp_path: Path,
+    monkeypatch: MonkeyPatch,
+) -> None:
+    output_path = tmp_path / "profile.json"
+    _patch_profile_loader(
+        monkeypatch,
+        "ProcIomemProfileLoader",
+        "00004000-00004fff : PCI Bus 0000:00\n",
+    )
+
+    exit_code = main(
+        [
+            "--generate-profile",
+            "proc-iomem",
+            "--profile-output",
+            str(output_path),
+        ]
+    )
+
+    assert exit_code == EXIT_SUCCESS
+    assert json.loads(output_path.read_text(encoding="utf-8"))["ranges"] == [
+        {
+            "name": "PCI Bus 0000:00",
+            "start": 16384,
+            "end": 20479,
+            "source_label": "PCI Bus 0000:00",
+        }
+    ]
+
+
+def test_main_generates_kernel_iomem_profile_to_stdout(
+    capsys: CaptureFixture[str],
+    monkeypatch: MonkeyPatch,
+) -> None:
+    _patch_profile_loader(
+        monkeypatch,
+        "KernelProfileLoader",
+        "00001000-00001fff : Kernel code\n",
+    )
+
+    exit_code = main(["--generate-profile", "kernel"])
+    captured = capsys.readouterr()
+
+    assert exit_code == EXIT_SUCCESS
+    assert json.loads(captured.out) == {
+        "source": "proc_iomem_kernel",
+        "ranges": [
+            {
+                "name": "KERNEL_CODE_RANGE",
+                "start": 4096,
+                "end": 8191,
+                "source_label": "Kernel code",
+            }
+        ],
+        "diagnostics": [],
+        "schema_version": 1,
+    }
+
+
+def test_main_generates_kernel_iomem_profile_to_file(
+    tmp_path: Path,
+    monkeypatch: MonkeyPatch,
+) -> None:
+    output_path = tmp_path / "kernel-profile.json"
+    _patch_profile_loader(
+        monkeypatch,
+        "KernelProfileLoader",
+        "00002000-00002fff : Kernel data\n",
+    )
+
+    exit_code = main(
+        [
+            "--generate-profile",
+            "kernel",
+            "--profile-output",
+            str(output_path),
+        ]
+    )
+
+    assert exit_code == EXIT_SUCCESS
+    assert json.loads(output_path.read_text(encoding="utf-8"))["ranges"] == [
+        {
+            "name": "KERNEL_DATA_RANGE",
+            "start": 8192,
+            "end": 12287,
+            "source_label": "Kernel data",
+        }
+    ]
+
+
 def _patch_successful_disassembler(
     monkeypatch: MonkeyPatch,
     output: str = "rendered\n",
@@ -194,3 +315,29 @@ def _patch_successful_disassembler(
 
     monkeypatch.setattr(cli, "build_default_disassembler", fake_build_default_disassembler)
     return captured_renderer
+
+
+def _patch_profile_loader(monkeypatch: MonkeyPatch, loader_name: str, raw_text: str) -> None:
+    original_loader = getattr(cli, loader_name)
+
+    class FakeProfileLoader:
+        def __init__(self, _runner: object, **_kwargs: object) -> None:
+            pass
+
+        def load(self) -> object:
+            return original_loader(_FakeRunner(raw_text)).load()
+
+    monkeypatch.setattr(cli, loader_name, FakeProfileLoader)
+
+
+class _FakeRunner:
+    def __init__(self, raw_text: str) -> None:
+        self._raw_text = raw_text
+
+    def run(self, _spec: object) -> object:
+        return _FakeCompletedProcess(stdout=self._raw_text.encode())
+
+
+class _FakeCompletedProcess:
+    def __init__(self, stdout: bytes) -> None:
+        self.stdout = stdout
