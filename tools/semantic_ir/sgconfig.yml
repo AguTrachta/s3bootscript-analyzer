@@ -1,0 +1,8 @@
+ruleDirs: []
+
+customLanguages:
+  s3boot:
+    libraryPath: parser.so
+    languageSymbol: tree_sitter_s3boot_semantic
+    extensions:
+      - txt

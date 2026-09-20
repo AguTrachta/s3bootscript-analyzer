@@ -1,0 +1,42 @@
+{
+  "$schema": "https://tree-sitter.github.io/tree-sitter/assets/schemas/config.schema.json",
+  "grammars": [
+    {
+      "name": "s3bootscript",
+      "camelcase": "S3BootScript",
+      "title": "S3 Boot Script Analyzer",
+      "scope": "source.s3bootscript",
+      "file-types": [
+        "s3bootscript"
+      ],
+      "injection-regex": "^s3bootscript$",
+      "class-name": "TreeSitterS3bootscript"
+    }
+  ],
+  "metadata": {
+    "version": "0.1.0",
+    "license": "MIT",
+    "description": "Parser for the S3 Boot Script binary",
+    "authors": [
+      {
+        "name": "Agustin Trachta",
+        "email": "agustrachta@gmail.com",
+        "url": "github.com/AguTrachta"
+      }
+    ],
+    "links": {
+      "repository": "https://github.com/tree-sitter/tree-sitter-s3bootscript",
+      "funding": ""
+    }
+  },
+  "bindings": {
+    "c": false,
+    "go": false,
+    "java": false,
+    "node": false,
+    "python": false,
+    "rust": false,
+    "swift": false,
+    "zig": false
+  }
+}

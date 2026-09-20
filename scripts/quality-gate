@@ -2,6 +2,8 @@
 set -euo pipefail
 
 scripts/generate-kaitai
+cc -shared -fPIC -I tools/semantic_ir/src \
+  tools/semantic_ir/src/parser.c -o tools/semantic_ir/parser.so
 
 ruff check .
 PYLINTHOME=.pylint.d pylint src tests

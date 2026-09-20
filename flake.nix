@@ -99,10 +99,12 @@
         {
           default = pkgs.mkShellNoCC {
             packages = [
+              pkgs.ast-grep
               virtualenv
               pkgs.uv
 
               pkgs.kaitai-struct-compiler
+              pkgs.stdenv.cc
               pkgs.shellcheck
               pkgs.jq
               pkgs.markdownlint-cli2
