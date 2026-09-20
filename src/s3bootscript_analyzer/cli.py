@@ -1,4 +1,4 @@
-"""Command-line entry point for S3 boot script disassembly."""
+"""Command-line entry point for S3 boot script tools."""
 
 from __future__ import annotations
 
@@ -11,6 +11,13 @@ from enum import StrEnum
 from pathlib import Path
 
 from s3bootscript_analyzer.application import build_default_disassembler
+from s3bootscript_analyzer.cli_analysis import (
+    EXIT_FAILURE,
+    EXIT_SUCCESS,
+    build_report_renderer,
+    configure_analysis_parser,
+    run_analysis,
+)
 from s3bootscript_analyzer.errors import BootScriptAnalyzerError
 from s3bootscript_analyzer.profile_data import (
     GenerateProfile,
@@ -28,8 +35,8 @@ from s3bootscript_analyzer.reporting import (
     write_text_output,
 )
 
-EXIT_SUCCESS = 0
-EXIT_FAILURE = 1
+__all__ = ["EXIT_FAILURE", "EXIT_SUCCESS", "build_parser", "build_report_renderer", "main"]
+
 READY_MESSAGE = "s3bootscript-analyzer scaffold ready."
 DEBUG_LOG_FORMAT = "Debug: %(message)s"
 _LOGGER = logging.getLogger(__name__)
@@ -97,12 +104,16 @@ def build_parser() -> argparse.ArgumentParser:
         type=Path,
         help="Path where the generated platform profile JSON should be written.",
     )
+    commands = parser.add_subparsers(dest="command")
+    configure_analysis_parser(commands.add_parser("analyze", help="Analyze binary using rules."))
     return parser
 
 
 def main(argv: Sequence[str] | None = None) -> int:
     args = build_parser().parse_args(argv)
     _configure_logging(args.debug)
+    if args.command == "analyze":
+        return run_analysis(args, build_report_renderer)
     return _run(args)
 
 

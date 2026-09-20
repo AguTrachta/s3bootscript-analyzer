@@ -52,6 +52,25 @@ def test_main_reports_missing_input(tmp_path: Path, capsys: CaptureFixture[str])
     assert "Unable to load input binary" in captured.out
 
 
+def test_main_explains_unavailable_analysis_report_renderer(
+    tmp_path: Path, capsys: CaptureFixture[str]
+) -> None:
+    arguments = [
+        "analyze",
+        "--input-binary",
+        str(tmp_path / "input.bin"),
+        "--rule",
+        str(tmp_path / "rule.yaml"),
+    ]
+
+    exit_code = main(arguments)
+
+    captured = capsys.readouterr()
+    assert exit_code == EXIT_FAILURE
+    assert "report rendering is not available" in captured.err
+    assert captured.out == ""
+
+
 @pytest.mark.parametrize(
     ("output_format", "renderer_type"),
     [
