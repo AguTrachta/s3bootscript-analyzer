@@ -1,0 +1,27 @@
+schema_version: 1
+plugin: s3bootscript
+metadata:
+  id: S3-MEM-WRITE-SPIBAR-001
+  title: Memory write to SPIBAR
+  description: Memory write targets the protected SPIBAR range.
+  severity: warning
+  enabled: true
+profile:
+  required_fields:
+    - protected_mmio
+matcher:
+  type: ast_grep
+  config:
+    language: s3boot
+    rule:
+      any:
+        - pattern: mem[$ADDR] <- $VALUE
+        - pattern: mem[$ADDR] <- (mem[$ADDR] & $MASK) | $VALUE
+      constraints:
+        ADDR:
+          regex: '^0x[Ff][Ee][Dd]01[01][0-9a-fA-F]{2}$'
+condition:
+  language: simpleeval
+  expression: >-
+    any([ADDR >= region["start"] and ADDR <= region["end"]
+         for region in profile["protected_mmio"]])

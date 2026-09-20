@@ -18,10 +18,10 @@ from s3bootscript_analyzer.engine.formatting import (
     MISSING_FIELD_TEXT,
     format_bytes,
     format_integer,
-    format_semantic_value,
     format_value,
 )
 from s3bootscript_analyzer.errors import OutputWriteError
+from s3bootscript_analyzer.ir.semantic import SemanticIrBuilder, semantic_annotation
 from s3bootscript_analyzer.parsers.raw import (
     RawBootScript,
     RawOpcodeRecord,
@@ -39,25 +39,6 @@ _LOGGER = logging.getLogger(__name__)
 RenderedHeader = dict[str, int | str]
 RenderedFields = dict[str, str]
 RenderedRecord = dict[str, str | int | RenderedFields]
-SEMANTIC_ANNOTATIONS: dict[str, str] = {
-    "IO_READ_WRITE": "io[address] <- (io[address] & data_mask) | data",
-    "MEM_READ_WRITE": "mem[address] <- (mem[address] & data_mask) | data",
-    "PCI_CONFIG_READ_WRITE": "pci[address] <- (pci[address] & data_mask) | data",
-    "PCI_CONFIG2_READ_WRITE": ("pci[segment:address] <- (pci[segment:address] & data_mask) | data"),
-    "IO_WRITE": "io[address] <- buffer",
-    "MEM_WRITE": "mem[address] <- buffer",
-    "PCI_CONFIG_WRITE": "pci[address] <- buffer",
-    "PCI_CONFIG2_WRITE": "pci[segment:address] <- buffer",
-    "IO_POLL": "poll until (io[address] & data_mask) == data",
-    "MEM_POLL": "poll until (mem[address] & data_mask) == data",
-    "PCI_CONFIG_POLL": "poll until (pci[address] & data_mask) == data",
-    "PCI_CONFIG2_POLL": "poll until (pci[segment:address] & data_mask) == data",
-    "DISPATCH": "call entry_point",
-    "DISPATCH_2": "call entry_point(context)",
-    "STALL": "stall(duration)",
-    "INFORMATION": "info(information)",
-    "SMBUS_EXECUTE": "smbus_execute(...)",
-}
 
 
 class BootScriptRenderer(Protocol):
@@ -117,8 +98,7 @@ class SemanticIrRenderer:
         _header_text: str,
         _opcode_lines: Sequence[str],
     ) -> str:
-        lines = _render_semantic_lines(raw_script.records)
-        return LINE_SEPARATOR.join(lines) + TRAILING_LINE_SEPARATOR
+        return SemanticIrBuilder().build(raw_script).text
 
 
 def _render_header(header: RawTableHeader) -> RenderedHeader:
@@ -150,27 +130,6 @@ def _render_fields(record: RawOpcodeRecord) -> RenderedFields:
     }
 
 
-def _render_semantic_lines(records: Iterable[RawOpcodeRecord]) -> Iterator[str]:
-    for record in records:
-        rendered_line = _render_semantic_record(record)
-        if rendered_line is not None:
-            yield rendered_line
-
-
-def _render_semantic_record(record: RawOpcodeRecord) -> str | None:
-    template = _semantic_annotation(record)
-    if template is None:
-        return None
-    rendered = template
-    semantic_fields = {
-        field: format_semantic_value(getattr(record.body, field, MISSING_FIELD_TEXT))
-        for field in get_opcode_fields(record.opcode_id)
-    }
-    for field_name in sorted(semantic_fields, key=len, reverse=True):
-        rendered = rendered.replace(field_name, semantic_fields[field_name])
-    return rendered
-
-
 def _annotate_opcode_lines(
     records: Iterable[RawOpcodeRecord], opcode_lines: Iterable[str], verbose: bool
 ) -> Iterator[str]:
@@ -197,7 +156,7 @@ def _semantic_column(verbose: bool) -> int:
 
 
 def _semantic_annotation(record: RawOpcodeRecord) -> str | None:
-    return SEMANTIC_ANNOTATIONS.get(get_opcode_mnemonic(record.opcode_id))
+    return semantic_annotation(record)
 
 
 def write_text_output(text: str, output_path: Path | None) -> None:

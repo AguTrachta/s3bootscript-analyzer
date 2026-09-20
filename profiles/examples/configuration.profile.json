@@ -1,0 +1,10 @@
+{
+  "source": "example_configuration",
+  "limits": {
+    "maximum_count": 128
+  },
+  "allowed_identifiers": ["alpha", "beta"],
+  "features": {
+    "auditing_required": true
+  }
+}

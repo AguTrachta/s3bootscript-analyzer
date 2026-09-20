@@ -4,6 +4,6 @@ set -euo pipefail
 codespell
 yamllint .
 yamale -s schemas/rule.schema.yaml rules
-yamale -s schemas/profile.schema.yaml profiles
+pytest -q tests/unit/test_analysis_profiles.py -k repository_profile_examples
 
 markdownlint-cli2 "**/*.md"

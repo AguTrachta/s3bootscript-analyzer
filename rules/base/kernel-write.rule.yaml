@@ -1,0 +1,23 @@
+schema_version: 1
+plugin: s3bootscript
+metadata:
+  id: S3-KERNEL-WRITE-001
+  title: Memory write into reported kernel code
+  description: A memory-write destination falls within a reported kernel code range.
+  severity: warning
+  enabled: true
+profile:
+  required_fields:
+    - ranges
+matcher:
+  type: ast_grep
+  config:
+    language: s3boot
+    rule:
+      pattern: mem[$ADDR] <- $VALUE
+condition:
+  language: simpleeval
+  expression: >-
+    any([r["name"] == "KERNEL_CODE_RANGE" and
+         ADDR >= r["start"] and ADDR <= r["end"]
+         for r in profile["ranges"]])

@@ -1,0 +1,15 @@
+schema_version: 1
+plugin: s3bootscript
+metadata:
+  id: S3-POLL-001
+  title: Memory poll example
+  description: Matches memory poll statements in the semantic IR.
+  severity: informational
+  enabled: true
+matcher:
+  type: ast_grep
+  config:
+    language: s3boot
+    rule:
+      any:
+        - pattern: poll until (mem[$ADDR] & $MASK) == $VALUE

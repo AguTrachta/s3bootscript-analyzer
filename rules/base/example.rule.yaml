@@ -1,3 +1,13 @@
-id: BOOTSCRIPT-0001
-title: Minimal example rule
-enabled: true
+schema_version: 1
+plugin: s3bootscript
+metadata:
+  id: BOOTSCRIPT-0001
+  title: Minimal memory write example
+  severity: informational
+  enabled: true
+matcher:
+  type: ast_grep
+  config:
+    language: s3boot
+    rule:
+      pattern: mem[$ADDR] <- $VALUE

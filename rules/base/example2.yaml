@@ -1,0 +1,19 @@
+schema_version: 1
+plugin: s3bootscript
+metadata:
+  id: S3-MEM-WRITE-SPIBAR-002
+  title: Memory write matching a SPIBAR address pattern
+  description: Memory write targets an address matching the known SPIBAR layout.
+  severity: warning
+  enabled: true
+matcher:
+  type: ast_grep
+  config:
+    language: s3boot
+    rule:
+      any:
+        - pattern: mem[$ADDR] <- $VALUE
+        - pattern: mem[$ADDR] <- (mem[$ADDR] & $MASK) | $VALUE
+      constraints:
+        ADDR:
+          regex: '^0x[Ff][Ee][Dd]01[01][0-9a-fA-F]{2}$'

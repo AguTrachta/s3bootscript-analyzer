@@ -1,3 +1,21 @@
-id: str()
-title: str()
-enabled: bool(required=False)
+schema_version: int(min=1, max=1)
+plugin: str(matches='^[a-z][a-z0-9_]*$')
+metadata: include('rule_metadata')
+profile: include('rule_profile', required=False)
+matcher: include('rule_matcher')
+condition: include('rule_condition', required=False)
+---
+rule_metadata:
+  id: str(min=1)
+  title: str(min=1)
+  description: str(required=False)
+  severity: enum('safe', 'informational', 'warning', 'critical')
+  enabled: bool(required=False)
+rule_profile:
+  required_fields: list(str(min=1), required=False)
+rule_matcher:
+  type: str(matches='^[a-z][a-z0-9_]*$')
+  config: map(str(), any())
+rule_condition:
+  language: enum('simpleeval')
+  expression: str(min=1)

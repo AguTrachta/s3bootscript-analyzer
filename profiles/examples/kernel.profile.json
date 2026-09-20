@@ -1,0 +1,13 @@
+{
+  "source": "proc_iomem_kernel",
+  "ranges": [
+    {
+      "name": "KERNEL_CODE_RANGE",
+      "start": 4096,
+      "end": 8191,
+      "source_label": "Kernel code"
+    }
+  ],
+  "diagnostics": [],
+  "schema_version": 1
+}
