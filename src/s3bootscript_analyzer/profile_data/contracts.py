@@ -14,7 +14,6 @@ class ProfileLoader(ABC):
     @abstractmethod
     def load(self) -> PlatformProfile:
         """Load and parse a platform profile."""
-        raise NotImplementedError
 
 
 class ProfileWriter(ABC):
@@ -23,4 +22,3 @@ class ProfileWriter(ABC):
     @abstractmethod
     def write(self, profile: PlatformProfile, output_path: Path) -> None:
         """Write a generated platform profile."""
-        raise NotImplementedError

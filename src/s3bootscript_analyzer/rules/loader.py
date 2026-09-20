@@ -11,7 +11,7 @@ import yaml
 
 from s3bootscript_analyzer.analysis.models import Diagnostic, RuleDefinition, Severity
 from s3bootscript_analyzer.extensions import AnalysisPlugin
-from s3bootscript_analyzer.rules.models import RuleLoadResult, RuleSource
+from s3bootscript_analyzer.rules.models import RuleLoader, RuleLoadResult, RuleSource
 
 SUPPORTED_SCHEMA_VERSION = 1
 MAX_RULE_SOURCE_CHARS = 1_000_000
@@ -27,7 +27,7 @@ MATCHER_FIELDS = frozenset({"config", "type"})
 CONDITION_FIELDS = frozenset({"expression", "language"})
 
 
-class YamlRuleLoader:
+class YamlRuleLoader(RuleLoader):
     """Load analyzer rule fields while preserving native matcher configuration."""
 
     def load(

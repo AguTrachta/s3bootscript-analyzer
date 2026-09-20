@@ -18,7 +18,7 @@ pytestmark = pytest.mark.usefixtures("renderer")
 
 
 @dataclass
-class RecordingRenderer:
+class RecordingRenderer(ReportRenderer):
     reports: list[AnalysisReport] = field(default_factory=list)
     formats: list[str] = field(default_factory=list)
 

@@ -8,6 +8,7 @@ import pytest
 from s3bootscript_analyzer.analysis import (
     AnalysisEngine,
     AnalysisProfile,
+    ConditionEvaluator,
     Diagnostic,
     EvaluationOutcome,
     JsonObject,
@@ -16,16 +17,16 @@ from s3bootscript_analyzer.analysis import (
     RuleExecutionError,
     Severity,
 )
-from s3bootscript_analyzer.extensions import AnalysisDocument
+from s3bootscript_analyzer.extensions import AnalysisDocument, AnalysisPlugin
 from s3bootscript_analyzer.ingest import BinarySource
 
 
-class StaticDocument:
+class StaticDocument(AnalysisDocument):
     plugin_id = "s3bootscript"
     diagnostics: tuple[Diagnostic, ...] = ()
 
 
-class StaticPlugin:
+class StaticPlugin(AnalysisPlugin):
     plugin_id = "s3bootscript"
 
     def __init__(
@@ -51,7 +52,7 @@ class StaticPlugin:
         return self._evidence
 
 
-class StaticConditionEvaluator:
+class StaticConditionEvaluator(ConditionEvaluator):
     def __init__(self, result: bool = True) -> None:
         self._result = result
         self.compiled: list[str] = []

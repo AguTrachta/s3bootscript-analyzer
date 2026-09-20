@@ -7,13 +7,15 @@ import re
 import subprocess  # nosec B404
 from collections.abc import Iterable, Mapping
 from pathlib import Path
-from typing import Protocol, cast
+from typing import cast
 
 import yaml
 
 from s3bootscript_analyzer.analysis.contracts import RuleExecutionError
 from s3bootscript_analyzer.analysis.models import MatchEvidence
 from s3bootscript_analyzer.errors import BootScriptAnalyzerError
+from s3bootscript_analyzer.ir.contracts import SemanticDocument
+from s3bootscript_analyzer.plugins.s3 import _S3Matcher
 
 DECIMAL_PATTERN = re.compile(r"^-?[0-9]+$")
 HEX_PATTERN = re.compile(r"^0[xX][0-9a-fA-F]+$")
@@ -23,34 +25,7 @@ class AstGrepOutputError(BootScriptAnalyzerError, ValueError):
     """Raised when ast-grep emits an invalid JSON stream record."""
 
 
-class SemanticSource(Protocol):
-    """Binary source reference returned by a semantic document."""
-
-    @property
-    def record_index(self) -> int:
-        """Binary record position."""
-        raise NotImplementedError
-
-    @property
-    def opcode_offset(self) -> int:
-        """Binary opcode byte offset."""
-        raise NotImplementedError
-
-
-class SemanticDocument(Protocol):
-    """Minimal semantic IR behavior required by the output adapter."""
-
-    @property
-    def text(self) -> str:
-        """Read-only semantic source text."""
-        raise NotImplementedError
-
-    def source_for_line(self, line: int) -> SemanticSource:
-        """Resolve a one-based semantic line to binary evidence."""
-        raise NotImplementedError
-
-
-class AstGrepMatcher:
+class AstGrepMatcher(_S3Matcher):
     """Execute native rules through a trusted ast-grep backend."""
 
     matcher_type = "ast_grep"

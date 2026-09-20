@@ -8,11 +8,16 @@ from s3bootscript_analyzer.application import (
 )
 from s3bootscript_analyzer.engine import build_default_opcode_decoder
 from s3bootscript_analyzer.ingest import BinarySource, FileLoader
-from s3bootscript_analyzer.parsers.raw import RawBootScript, RawOpcodeRecord, RawTableHeader
+from s3bootscript_analyzer.parsers.raw import (
+    BootScriptRawParser,
+    RawBootScript,
+    RawOpcodeRecord,
+    RawTableHeader,
+)
 from s3bootscript_analyzer.reporting import TextIrRenderer
 
 
-class StaticRawParser:
+class StaticRawParser(BootScriptRawParser):
     def parse(self, source: BinarySource) -> RawBootScript:
         return RawBootScript(
             table_header=RawTableHeader(

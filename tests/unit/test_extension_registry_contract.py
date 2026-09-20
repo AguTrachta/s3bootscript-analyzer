@@ -7,6 +7,7 @@ import pytest
 from s3bootscript_analyzer.analysis import Diagnostic, MatchEvidence, RuleDefinition
 from s3bootscript_analyzer.extensions import (
     AnalysisDocument,
+    AnalysisPlugin,
     DuplicateExtensionError,
     PluginCatalog,
     UnknownExtensionError,
@@ -14,12 +15,12 @@ from s3bootscript_analyzer.extensions import (
 from s3bootscript_analyzer.ingest import BinarySource
 
 
-class FakeDocument:
+class FakeDocument(AnalysisDocument):
     plugin_id = "s3bootscript"
     diagnostics: tuple[Diagnostic, ...] = ()
 
 
-class FakePlugin:
+class FakePlugin(AnalysisPlugin):
     plugin_id = "s3bootscript"
 
     def decode(self, _source: BinarySource) -> FakeDocument:

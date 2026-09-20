@@ -13,12 +13,13 @@ from s3bootscript_analyzer.analysis import (
 )
 from s3bootscript_analyzer.extensions import DuplicateExtensionError
 from s3bootscript_analyzer.ingest import BinarySource
-from s3bootscript_analyzer.ir import SemanticIrDocument
-from s3bootscript_analyzer.parsers.raw import RawBootScript, RawTableHeader
+from s3bootscript_analyzer.ir import SemanticIrBuilder, SemanticIrDocument
+from s3bootscript_analyzer.parsers.raw import BootScriptRawParser, RawBootScript, RawTableHeader
 from s3bootscript_analyzer.plugins import S3BootScriptPlugin
+from s3bootscript_analyzer.plugins.s3 import _S3Matcher
 
 
-class StaticRawParser:
+class StaticRawParser(BootScriptRawParser):
     def __init__(self) -> None:
         self.sources: list[BinarySource] = []
 
@@ -30,7 +31,7 @@ class StaticRawParser:
         )
 
 
-class StaticSemanticBuilder:
+class StaticSemanticBuilder(SemanticIrBuilder):
     def __init__(self) -> None:
         self.scripts: list[RawBootScript] = []
 
@@ -39,7 +40,7 @@ class StaticSemanticBuilder:
         return SemanticIrDocument(text="", source_map=())
 
 
-class StaticMatcher:
+class StaticMatcher(_S3Matcher):
     matcher_type = "ast_grep"
 
     def match(

@@ -2,8 +2,9 @@
 
 from __future__ import annotations
 
+from abc import ABC, abstractmethod
 from dataclasses import dataclass
-from typing import Protocol, cast
+from typing import cast
 
 from s3bootscript_analyzer.engine.formatting import (
     MISSING_FIELD,
@@ -16,12 +17,12 @@ from s3bootscript_analyzer.engine.opcodes import OpcodeId
 from s3bootscript_analyzer.parsers.raw import RawOpcodeRecord
 
 
-class OpcodeDecoder(Protocol):
+class OpcodeDecoder(ABC):
     """Decode one raw opcode into textual IR."""
 
+    @abstractmethod
     def decode(self, record: RawOpcodeRecord, verbose: bool = False) -> str:
         """Decode a raw opcode record."""
-        raise NotImplementedError
 
 
 type FieldNames = tuple[str, ...]
@@ -36,7 +37,7 @@ class OpcodeMetadata:
     fields: FieldNames
 
 
-class StructuredOpcodeDecoder:
+class StructuredOpcodeDecoder(OpcodeDecoder):
     """Data-driven decoder for opcodes with simple field output."""
 
     def __init__(self, mnemonic: str, fields: FieldNames) -> None:
@@ -210,7 +211,7 @@ class TerminateDecoder(StructuredOpcodeDecoder):
         super().__init__("TERMINATE", EMPTY_FIELDS)
 
 
-class UnknownOpcodeDecoder:
+class UnknownOpcodeDecoder(OpcodeDecoder):
     """Fallback decoder for unsupported or malformed opcodes."""
 
     def decode(self, record: RawOpcodeRecord, verbose: bool = False) -> str:

@@ -10,6 +10,8 @@ from s3bootscript_analyzer.engine.decoders import (
     get_opcode_mnemonic,
 )
 from s3bootscript_analyzer.engine.formatting import MISSING_FIELD_TEXT, format_semantic_value
+from s3bootscript_analyzer.extensions import AnalysisDocument
+from s3bootscript_analyzer.ir.contracts import SemanticDocument, SemanticSource
 from s3bootscript_analyzer.parsers.raw import RawBootScript, RawOpcodeRecord
 
 S3_BOOT_SCRIPT_PLUGIN_ID = "s3bootscript"
@@ -36,20 +38,20 @@ SEMANTIC_ANNOTATIONS: dict[str, str] = {
 }
 
 
-@dataclass(frozen=True)
-class SemanticSourceReference:
+@dataclass(frozen=True, slots=True)
+class SemanticSourceReference(SemanticSource):
     """Map one human-readable semantic line to its binary record."""
 
     semantic_line: int
-    record_index: int
-    opcode_offset: int
+    record_index: int = field()
+    opcode_offset: int = field()
 
 
-@dataclass(frozen=True)
-class SemanticIrDocument:
+@dataclass(frozen=True, slots=True)
+class SemanticIrDocument(AnalysisDocument, SemanticDocument):
     """Existing S3 semantic text plus evidence traceability."""
 
-    text: str
+    text: str = field()
     source_map: tuple[SemanticSourceReference, ...]
     diagnostics: tuple[Diagnostic, ...] = ()
     plugin_id: str = field(default=S3_BOOT_SCRIPT_PLUGIN_ID, init=False)

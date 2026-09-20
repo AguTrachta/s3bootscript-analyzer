@@ -2,8 +2,6 @@
 
 from __future__ import annotations
 
-from typing import Protocol
-
 from s3bootscript_analyzer.engine.decoders import (
     Dispatch2Decoder,
     DispatchDecoder,
@@ -14,7 +12,6 @@ from s3bootscript_analyzer.engine.decoders import (
     MemPollDecoder,
     MemReadWriteDecoder,
     MemWriteDecoder,
-    OpcodeDecoder,
     PciConfig2PollDecoder,
     PciConfig2ReadWriteDecoder,
     PciConfig2WriteDecoder,
@@ -25,19 +22,10 @@ from s3bootscript_analyzer.engine.decoders import (
     StallDecoder,
     TerminateDecoder,
 )
-from s3bootscript_analyzer.engine.opcodes import OpcodeId
 from s3bootscript_analyzer.engine.registry import OpcodeDecoderRegistry
 from s3bootscript_analyzer.engine.script_decoder import BootScriptOpcodeDecoder
 
-
-class DecoderFactory(Protocol):
-    opcode_id: OpcodeId
-
-    def __call__(self) -> OpcodeDecoder:
-        raise NotImplementedError
-
-
-DEFAULT_DECODER_FACTORIES: tuple[DecoderFactory, ...] = (
+DEFAULT_DECODER_FACTORIES = (
     IoWriteDecoder,
     IoReadWriteDecoder,
     MemWriteDecoder,

@@ -2,9 +2,10 @@
 
 from __future__ import annotations
 
+from abc import ABC, abstractmethod
 from collections.abc import Sequence
 from dataclasses import dataclass
-from typing import TYPE_CHECKING, Protocol
+from typing import TYPE_CHECKING
 
 from s3bootscript_analyzer.analysis.models import Diagnostic, RuleDefinition
 
@@ -28,13 +29,13 @@ class RuleLoadResult:
     diagnostics: tuple[Diagnostic, ...]
 
 
-class RuleLoader(Protocol):
+class RuleLoader(ABC):
     """Load analyzer rules compatible with the selected plugin."""
 
+    @abstractmethod
     def load(
         self,
         sources: Sequence[RuleSource],
         plugin: AnalysisPlugin,
     ) -> RuleLoadResult:
         """Load valid rules while preserving recoverable diagnostics."""
-        raise NotImplementedError

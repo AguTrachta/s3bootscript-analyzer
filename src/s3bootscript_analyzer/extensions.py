@@ -2,8 +2,9 @@
 
 from __future__ import annotations
 
+from abc import ABC, abstractmethod
 from collections.abc import Iterable
-from typing import TYPE_CHECKING, Protocol
+from typing import TYPE_CHECKING
 
 from s3bootscript_analyzer.ingest.source import BinarySource
 
@@ -23,39 +24,39 @@ class DuplicateExtensionError(ValueError):
     """Raised when trusted composition contains an ambiguous identifier."""
 
 
-class AnalysisDocument(Protocol):
+class AnalysisDocument(ABC):
     """Minimum document behavior shared across analysis plugins."""
 
     @property
+    @abstractmethod
     def plugin_id(self) -> str:
         """Return the identifier of the plugin that produced the document."""
-        raise NotImplementedError
 
     @property
+    @abstractmethod
     def diagnostics(self) -> tuple[Diagnostic, ...]:
         """Return recoverable diagnostics produced while decoding."""
-        raise NotImplementedError
 
 
-class AnalysisPlugin(Protocol):
+class AnalysisPlugin(ABC):
     """Trusted facade for decoding and matching one artifact family."""
 
     @property
+    @abstractmethod
     def plugin_id(self) -> str:
         """Return the trusted plugin identifier."""
-        raise NotImplementedError
 
+    @abstractmethod
     def decode(self, source: BinarySource) -> AnalysisDocument:
         """Decode an artifact into the plugin-owned analysis document."""
-        raise NotImplementedError
 
+    @abstractmethod
     def match(
         self,
         document: AnalysisDocument,
         rule: RuleDefinition,
     ) -> Iterable[MatchEvidence]:
         """Return matches in stable source order."""
-        raise NotImplementedError
 
 
 class PluginCatalog:

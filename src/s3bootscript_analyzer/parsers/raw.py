@@ -2,8 +2,8 @@
 
 from __future__ import annotations
 
+from abc import ABC, abstractmethod
 from dataclasses import dataclass
-from typing import Protocol
 
 from s3bootscript_analyzer.ingest.source import BinarySource
 
@@ -42,12 +42,12 @@ class RawBootScript:
     records: list[RawOpcodeRecord]
 
 
-class BootScriptRawParser(Protocol):
+class BootScriptRawParser(ABC):
     """Parser contract used by the application layer."""
 
+    @abstractmethod
     def parse(self, source: BinarySource) -> RawBootScript:
         """Parse a binary source into a raw boot script."""
-        raise NotImplementedError
 
 
 RECORD_OPCODE_SIZE = 2

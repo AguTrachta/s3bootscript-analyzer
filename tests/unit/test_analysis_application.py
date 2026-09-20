@@ -9,9 +9,11 @@ import pytest
 from s3bootscript_analyzer.analysis import (
     AnalysisEngine,
     AnalysisProfile,
+    AnalysisProfileLoader,
     AnalysisRequest,
     AnalysisSetupError,
     AnalyzeArtifact,
+    ConditionEvaluator,
     Diagnostic,
     JsonObject,
     MatchEvidence,
@@ -22,15 +24,15 @@ from s3bootscript_analyzer.analysis import (
 from s3bootscript_analyzer.extensions import AnalysisDocument, AnalysisPlugin, PluginCatalog
 from s3bootscript_analyzer.ingest import BinarySource
 from s3bootscript_analyzer.profile_data import JsonProfileLoader
-from s3bootscript_analyzer.rules import RuleLoadResult, RuleSource, YamlRuleLoader
+from s3bootscript_analyzer.rules import RuleLoader, RuleLoadResult, RuleSource, YamlRuleLoader
 
 
-class StaticDocument:
+class StaticDocument(AnalysisDocument):
     plugin_id = "s3bootscript"
     diagnostics = (Diagnostic("unsupported_opcode", "Skipped opcode", "artifact.bin"),)
 
 
-class StaticPlugin:
+class StaticPlugin(AnalysisPlugin):
     plugin_id = "s3bootscript"
 
     def decode(self, _source: BinarySource) -> AnalysisDocument:
@@ -44,7 +46,7 @@ class StaticPlugin:
         return (_evidence(),)
 
 
-class StaticRuleLoader:
+class StaticRuleLoader(RuleLoader):
     def __init__(self, result: RuleLoadResult) -> None:
         self._result = result
 
@@ -56,12 +58,12 @@ class StaticRuleLoader:
         return self._result
 
 
-class StaticProfileLoader:
+class StaticProfileLoader(AnalysisProfileLoader):
     def load(self, _selection: ProfileSelection) -> AnalysisProfile:
         return AnalysisProfile(name="test-profile", data={})
 
 
-class AcceptingConditions:
+class AcceptingConditions(ConditionEvaluator):
     def __init__(self) -> None:
         self.profiles: list[JsonObject] = []
 

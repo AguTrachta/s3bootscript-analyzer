@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from typing import Protocol
+from abc import ABC, abstractmethod
 
 from s3bootscript_analyzer.analysis.models import (
     AnalysisReport,
@@ -16,13 +16,14 @@ class RuleExecutionError(RuntimeError):
     """Operational plugin or condition failure contained at rule scope."""
 
 
-class ConditionEvaluator(Protocol):
+class ConditionEvaluator(ABC):
     """Compile and evaluate a trusted embedded expression language."""
 
+    @abstractmethod
     def compile(self, expression: str) -> object:
         """Compile a validated expression once for one rule."""
-        raise NotImplementedError
 
+    @abstractmethod
     def evaluate(
         self,
         condition: object,
@@ -30,20 +31,19 @@ class ConditionEvaluator(Protocol):
         profile: JsonObject,
     ) -> bool:
         """Evaluate captures and JSON facts without domain-specific interpretation."""
-        raise NotImplementedError
 
 
-class AnalysisProfileLoader(Protocol):
+class AnalysisProfileLoader(ABC):
     """Load one immutable engine-facing profile selection."""
 
+    @abstractmethod
     def load(self, selection: ProfileSelection) -> AnalysisProfile:
         """Load the explicit profile or the configured default."""
-        raise NotImplementedError
 
 
-class ReportRenderer(Protocol):
+class ReportRenderer(ABC):
     """Render a complete analysis report without writing it."""
 
+    @abstractmethod
     def render(self, report: AnalysisReport) -> str:
         """Return the formatted report text."""
-        raise NotImplementedError

@@ -12,6 +12,7 @@ from kaitaistruct import KaitaiStructError
 from s3bootscript_analyzer.errors import RawParseError
 from s3bootscript_analyzer.ingest.source import BinarySource
 from s3bootscript_analyzer.parsers.raw import (
+    BootScriptRawParser,
     RawBootScript,
     RawOpcodeRecord,
     RawTableHeader,
@@ -40,7 +41,7 @@ OPCODE_ATTRIBUTE = "opcode"
 _LOGGER = logging.getLogger(__name__)
 
 
-class KaitaiBootScriptRawParser:
+class KaitaiBootScriptRawParser(BootScriptRawParser):
     """Use generated Kaitai code and adapt it into raw domain records."""
 
     def parse(self, source: BinarySource) -> RawBootScript:

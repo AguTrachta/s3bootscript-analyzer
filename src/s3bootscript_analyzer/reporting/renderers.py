@@ -4,10 +4,10 @@ from __future__ import annotations
 
 import json
 import logging
+from abc import ABC, abstractmethod
 from collections.abc import Iterable, Iterator, Sequence
 from itertools import chain
 from pathlib import Path
-from typing import Protocol
 
 from s3bootscript_analyzer.engine.decoders import (
     UNKNOWN_MNEMONIC,
@@ -41,9 +41,10 @@ RenderedFields = dict[str, str]
 RenderedRecord = dict[str, str | int | RenderedFields]
 
 
-class BootScriptRenderer(Protocol):
+class BootScriptRenderer(ABC):
     """Render a parsed boot script into an output format."""
 
+    @abstractmethod
     def render(
         self,
         raw_script: RawBootScript,
@@ -51,10 +52,9 @@ class BootScriptRenderer(Protocol):
         opcode_lines: Sequence[str],
     ) -> str:
         """Render output from a raw boot script and decoded text lines."""
-        raise NotImplementedError
 
 
-class TextIrRenderer:
+class TextIrRenderer(BootScriptRenderer):
     """Render decoded boot script lines as plain text."""
 
     def __init__(self, verbose: bool = False) -> None:
@@ -73,7 +73,7 @@ class TextIrRenderer:
         return LINE_SEPARATOR.join(chain((header_text,), opcode_lines)) + TRAILING_LINE_SEPARATOR
 
 
-class JsonIrRenderer:
+class JsonIrRenderer(BootScriptRenderer):
     """Render decoded boot script data as structured JSON."""
 
     def render(
@@ -89,7 +89,7 @@ class JsonIrRenderer:
         return json.dumps(data, indent=JSON_INDENT) + TRAILING_LINE_SEPARATOR
 
 
-class SemanticIrRenderer:
+class SemanticIrRenderer(BootScriptRenderer):
     """Render resolved semantic expressions only."""
 
     def render(

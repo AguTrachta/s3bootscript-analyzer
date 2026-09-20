@@ -2,45 +2,42 @@
 
 from __future__ import annotations
 
+from abc import ABC, abstractmethod
 from collections.abc import Iterable, Mapping
-from typing import Protocol, cast
+from typing import cast
 
 from s3bootscript_analyzer.analysis.contracts import RuleExecutionError
 from s3bootscript_analyzer.analysis.models import MatchEvidence, RuleDefinition
 from s3bootscript_analyzer.extensions import (
     AnalysisDocument,
+    AnalysisPlugin,
     DuplicateExtensionError,
     UnknownExtensionError,
 )
 from s3bootscript_analyzer.ingest.source import BinarySource
 from s3bootscript_analyzer.ir.semantic import (
     S3_BOOT_SCRIPT_PLUGIN_ID,
+    SemanticIrBuilder,
     SemanticIrDocument,
 )
-from s3bootscript_analyzer.parsers.raw import BootScriptRawParser, RawBootScript
+from s3bootscript_analyzer.parsers.raw import BootScriptRawParser
 
 
-class _SemanticBuilder(Protocol):
-    def build(self, raw_script: RawBootScript) -> SemanticIrDocument:
-        """Build the shared matcher-facing S3 semantic document."""
-        raise NotImplementedError
-
-
-class _S3Matcher(Protocol):
+class _S3Matcher(ABC):
     """Private matcher adapter owned by the S3 plugin."""
 
     matcher_type: str
 
+    @abstractmethod
     def match(
         self,
         document: SemanticIrDocument,
         config: Mapping[str, object],
     ) -> Iterable[MatchEvidence]:
         """Return evidence in semantic source order."""
-        raise NotImplementedError
 
 
-class S3BootScriptPlugin:
+class S3BootScriptPlugin(AnalysisPlugin):
     """Facade over existing S3 parsing, semantic IR, and private matchers."""
 
     plugin_id = S3_BOOT_SCRIPT_PLUGIN_ID
@@ -48,7 +45,7 @@ class S3BootScriptPlugin:
     def __init__(
         self,
         raw_parser: BootScriptRawParser,
-        semantic_builder: _SemanticBuilder,
+        semantic_builder: SemanticIrBuilder,
         matchers: Iterable[_S3Matcher] = (),
     ) -> None:
         self._raw_parser = raw_parser

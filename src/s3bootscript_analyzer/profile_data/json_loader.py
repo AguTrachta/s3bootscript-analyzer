@@ -6,6 +6,7 @@ import json
 from pathlib import Path
 from typing import Never
 
+from s3bootscript_analyzer.analysis.contracts import AnalysisProfileLoader
 from s3bootscript_analyzer.analysis.models import ProfileSelection
 from s3bootscript_analyzer.analysis.profile import AnalysisProfile
 from s3bootscript_analyzer.errors import BootScriptAnalyzerError
@@ -15,7 +16,7 @@ class ProfileLoadError(BootScriptAnalyzerError):
     """Raised when an explicitly selected profile cannot be loaded."""
 
 
-class JsonProfileLoader:
+class JsonProfileLoader(AnalysisProfileLoader):
     """Load a JSON object or supply an empty default when no path is selected."""
 
     def load(self, selection: ProfileSelection) -> AnalysisProfile:

@@ -5,7 +5,7 @@ from collections.abc import Iterable
 import pytest
 
 from s3bootscript_analyzer.analysis import Diagnostic, MatchEvidence, RuleDefinition, Severity
-from s3bootscript_analyzer.extensions import AnalysisDocument
+from s3bootscript_analyzer.extensions import AnalysisDocument, AnalysisPlugin
 from s3bootscript_analyzer.ingest import BinarySource
 from s3bootscript_analyzer.rules import RuleSource, YamlRuleLoader
 
@@ -35,12 +35,12 @@ condition:
 """
 
 
-class StaticDocument:
+class StaticDocument(AnalysisDocument):
     plugin_id = "s3bootscript"
     diagnostics: tuple[Diagnostic, ...] = ()
 
 
-class AcceptingPlugin:
+class AcceptingPlugin(AnalysisPlugin):
     plugin_id = "s3bootscript"
 
     def decode(self, _source: BinarySource) -> StaticDocument:
