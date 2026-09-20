@@ -28,6 +28,7 @@ from s3bootscript_analyzer.analysis.profile import (
     JsonValue,
     MissingProfileDataError,
 )
+from s3bootscript_analyzer.analysis.simpleeval import SimpleEvalConditionEvaluator
 
 __all__ = [
     "AnalysisEngine",
@@ -50,4 +51,5 @@ __all__ = [
     "RuleEvaluation",
     "RuleExecutionError",
     "Severity",
+    "SimpleEvalConditionEvaluator",
 ]
