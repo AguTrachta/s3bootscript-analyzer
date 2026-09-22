@@ -28,6 +28,7 @@ from s3bootscript_analyzer.parsers import KaitaiBootScriptRawParser
 from s3bootscript_analyzer.plugins import S3BootScriptPlugin
 from s3bootscript_analyzer.profile_data import JsonProfileLoader
 from s3bootscript_analyzer.reporting import write_text_output
+from s3bootscript_analyzer.reporting.analysis_report import JinjaReportRenderer
 from s3bootscript_analyzer.rules import RuleSource, YamlRuleLoader
 
 EXIT_SUCCESS = 0
@@ -52,7 +53,7 @@ def configure_analysis_parser(parser: argparse.ArgumentParser) -> None:
         "--output-format",
         choices=("markdown", "html"),
         default="markdown",
-        help="Report format; defaults to markdown (renderer pending).",
+        help="Report format; defaults to markdown.",
     )
     verbosity = parser.add_mutually_exclusive_group()
     verbosity.add_argument("--debug", action="store_true")
@@ -60,8 +61,8 @@ def configure_analysis_parser(parser: argparse.ArgumentParser) -> None:
 
 
 def build_report_renderer(output_format: str) -> ReportRenderer:
-    """Fail explicitly until a concrete report renderer is available."""
-    raise AnalysisSetupError(f"{output_format} report rendering is not available yet")
+    """Select the report adapter for the requested format."""
+    return JinjaReportRenderer(output_format)
 
 
 def run_analysis(

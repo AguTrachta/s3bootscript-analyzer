@@ -1,0 +1,51 @@
+{% macro diagnostics(items) %}
+{% for diagnostic in items %}
+- <code>{{ diagnostic.code | e }}</code>: {{ diagnostic.message | markdown_text }}
+{% if diagnostic.source is not none %}
+  Source: {{ diagnostic.source | markdown_text }}
+{% endif %}
+{% endfor %}
+{% endmacro %}
+# Analysis report
+
+- Artifact: {{ report.artifact_name | markdown_text }}
+- Plugin: {{ report.plugin_id | markdown_text }}
+- Profile: {{ report.profile_name | markdown_text }}
+
+{% if report.diagnostics %}
+## Report diagnostics
+
+{{ diagnostics(report.diagnostics) }}
+{% endif %}
+## Rule evaluations
+
+{% for evaluation in report.evaluations %}
+### {{ evaluation.rule.rule_id | markdown_text }} — {{ evaluation.rule.title | markdown_text }}
+
+{{ evaluation.rule.description | markdown_text }}
+
+- Severity: {{ evaluation.rule.severity.value }}
+- Outcome: {{ evaluation.outcome.value }}
+
+{% if evaluation.diagnostics %}
+{{ diagnostics(evaluation.diagnostics) }}
+{% endif %}
+{% for evidence in evaluation.evidence %}
+#### Evidence {{ loop.index }}
+
+{{ evidence.semantic_text | code_block }}
+
+- Semantic line: {{ evidence.semantic_line }}
+- Record index: {{ evidence.record_index }}
+- Byte offset: {{ "0x%x" | format(evidence.opcode_offset) }}
+
+Captures:
+
+{% for name, value in evidence.bindings.items() %}
+- {{ name | markdown_text }}:
+
+{{ value | code_block }}
+{% endfor %}
+
+{% endfor %}
+{% endfor %}

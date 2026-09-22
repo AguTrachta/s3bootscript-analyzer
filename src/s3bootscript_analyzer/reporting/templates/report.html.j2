@@ -1,0 +1,68 @@
+{% macro diagnostics(items) %}
+<ul>
+{% for diagnostic in items %}
+  <li><code>{{ diagnostic.code }}</code>: {{ diagnostic.message }}
+  {% if diagnostic.source is not none %}
+    <span>Source: {{ diagnostic.source }}</span>
+  {% endif %}
+  </li>
+{% endfor %}
+</ul>
+{% endmacro %}
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <title>Analysis report</title>
+  <style>
+    body { font-family: sans-serif; max-width: 70rem; margin: 2rem auto; padding: 0 1rem; }
+    article { border-top: 1px solid #ccc; margin-top: 2rem; }
+    pre { overflow-x: auto; padding: 1rem; background: #f5f5f5; }
+    dt { font-weight: bold; }
+    dd { margin-bottom: 0.5rem; overflow-wrap: anywhere; }
+  </style>
+</head>
+<body>
+  <h1>Analysis report</h1>
+  <dl>
+    <dt>Artifact</dt><dd>{{ report.artifact_name }}</dd>
+    <dt>Plugin</dt><dd>{{ report.plugin_id }}</dd>
+    <dt>Profile</dt><dd>{{ report.profile_name }}</dd>
+  </dl>
+{% if report.diagnostics %}
+  <h2>Report diagnostics</h2>
+  {{ diagnostics(report.diagnostics) }}
+{% endif %}
+  <h2>Rule evaluations</h2>
+{% for evaluation in report.evaluations %}
+  <article>
+    <h3>{{ evaluation.rule.rule_id }} — {{ evaluation.rule.title }}</h3>
+    <p>{{ evaluation.rule.description }}</p>
+    <dl>
+      <dt>Severity</dt><dd>{{ evaluation.rule.severity.value }}</dd>
+      <dt>Outcome</dt><dd>{{ evaluation.outcome.value }}</dd>
+    </dl>
+    {% if evaluation.diagnostics %}
+    {{ diagnostics(evaluation.diagnostics) }}
+    {% endif %}
+    {% for evidence in evaluation.evidence %}
+    <section>
+      <h4>Evidence {{ loop.index }}</h4>
+      <pre><code>{{ evidence.semantic_text }}</code></pre>
+      <dl>
+        <dt>Semantic line</dt><dd>{{ evidence.semantic_line }}</dd>
+        <dt>Record index</dt><dd>{{ evidence.record_index }}</dd>
+        <dt>Byte offset</dt><dd>{{ "0x%x" | format(evidence.opcode_offset) }}</dd>
+      </dl>
+      <h5>Captures</h5>
+      <dl>
+        {% for name, value in evidence.bindings.items() %}
+        <dt>{{ name }}</dt><dd><code>{{ value }}</code></dd>
+        {% endfor %}
+      </dl>
+    </section>
+    {% endfor %}
+  </article>
+{% endfor %}
+</body>
+</html>
