@@ -1,12 +1,9 @@
 # s3bootscript-analyzer
 
-A Python 3.12 tool for inspecting UEFI S3 Boot Script binaries. It parses binary
-records, renders decoded opcodes, and generates Linux platform profiles. The
-Python API also provides declarative rule loading and analysis orchestration.
-
-The command-line interface supports disassembly and profile generation.
-It does not currently execute security rules or produce Markdown/HTML analysis
-reports.
+A Python 3.12 tool for inspecting UEFI S3 Boot Script binaries. It decodes
+opcodes, evaluates declarative rules against platform profile data, and produces
+Markdown or HTML reports with findings, diagnostics, and binary locations.
+The CLI also supports disassembly and Linux profile generation.
 
 ## Requirements
 
@@ -19,6 +16,67 @@ Enter the development environment:
 ```bash
 nix develop
 ```
+
+Run the following from the repository root before using analysis to build its
+matching grammar:
+
+```bash
+nix develop -c scripts/build-semantic-grammar
+```
+
+## Analyze a binary
+
+Generate a Markdown report using a rule and a JSON profile:
+
+```bash
+nix develop -c s3bootscript-analyzer analyze \
+  --input-binary samples/binaries/s3bootscript.bin \
+  --rule rules/base/kernel-write.rule.yaml \
+  --profile profiles/examples/kernel.profile.json \
+  --output-format markdown \
+  --output-report /tmp/analysis.md
+```
+
+The example profile contains synthetic addresses. It demonstrates the input
+format and may produce no matches for the sample binary. For platform analysis,
+use profile facts collected for the system that produced the binary.
+
+To generate HTML, use `--output-format html --output-report /tmp/analysis.html`.
+Markdown is the default format. Omit `--output-report` to print the report to
+standard output.
+
+| Option | Purpose |
+| --- | --- |
+| `--input-binary PATH` | Required binary input |
+| `--rule PATH` | Required rule file; repeat to evaluate additional files in order |
+| `--profile PATH` | Optional JSON profile; omission uses empty facts |
+| `--output-format markdown\|html` | Report format; defaults to Markdown |
+| `--output-report PATH` | Output file; defaults to standard output |
+| `--debug` | Send debug diagnostics to standard error |
+| `--quiet` | Suppress informational output while retaining errors and the report |
+
+`--debug` and `--quiet` are mutually exclusive. Run
+`s3bootscript-analyzer analyze --help` for the full command help.
+
+Reports list every evaluated rule with its declared severity and separate
+outcome: `matched`, `not_matched`, `unknown`, `error`, or `skipped`. Evidence
+includes captured values, semantic text, record indexes, and binary byte
+offsets. Missing required profile data produces `unknown`; an invalid selected
+profile is an error. A rule failure can appear alongside findings from other
+rules in the same report.
+
+| Exit code | Meaning |
+| --- | --- |
+| `0` | Completed without matches; may include unknown or skipped rules |
+| `3` | One or more rules matched |
+| `1` | Operational failure, even if another rule matched |
+| `2` | Invalid command arguments |
+
+A match reflects the rule's condition and declared severity. An exit code of
+`0` is not a safety verdict. Setup or output failures may prevent report creation.
+
+Analysis rules currently match semantic IR generated from the binary. The text
+and JSON disassembly formats below do not select a different rule input.
 
 ## Disassemble a binary
 
@@ -131,12 +189,17 @@ The Python API includes:
 - Generic `profile.required_fields` checks for literal top-level JSON keys.
 - Per-rule outcomes: `matched`, `not_matched`, `unknown`, `error`, and `skipped`.
 - ast-grep JSON-stream decoding with numeric captures and binary traceability.
+- `SimpleEvalConditionEvaluator` for Boolean conditions over captures and generic
+  `profile` facts, including comprehensions with `any`.
 - An `AnalyzeArtifact` use case returning structured `AnalysisReport` values.
 
-`AstGrepMatcher` now provides structural matching through the Python API.
-The quality gate compiles its checked-in grammar before running the matcher tests;
-run it once before using the matcher directly.
-The simpleeval evaluator and analysis CLI remain pending; no new CLI flags are available.
+Custom Python adapters must inherit their abstract base class contracts and
+implement the declared abstract operations.
+
+`AstGrepMatcher` provides structural matching through the CLI and Python API.
+Build its grammar using the preparation command above before running analysis.
+Conditions must return a Boolean; invalid expressions and evaluation failures
+become rule errors. Each candidate uses isolated captures, and `profile` is reserved.
 Rules in `rules/base/` are analyzer rule documents; they are not native ast-grep
 rule files and are not executed by the disassembly command.
 
