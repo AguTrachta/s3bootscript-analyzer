@@ -10,5 +10,10 @@ if ! command -v kaitai-struct-compiler >/dev/null 2>&1; then
 fi
 
 mkdir -p "${generated_dir}"
-kaitai-struct-compiler --target python --outdir "${generated_dir}" "${schema}"
+
+if ! output=$(kaitai-struct-compiler --target python --outdir "${generated_dir}" "${schema}" 2>&1); then
+  echo "${output}" >&2
+  exit 1
+fi
+
 touch "${generated_dir}/__init__.py"
