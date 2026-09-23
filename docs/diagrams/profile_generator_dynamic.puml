@@ -1,0 +1,38 @@
+@startuml
+title Generate once, load the same JSON
+skinparam shadowing false
+skinparam sequenceMessageAlign center
+actor User
+participant CLI
+participant GenerateProfile as Generate
+participant "KernelProfileLoader /\nProcIomemProfileLoader" as Source
+participant SubprocessRunner as Runner
+participant JsonProfileWriter as Writer
+database "profile.json" as File
+participant "Analysis caller" as Caller
+participant JsonProfileLoader as Loader
+
+User -> CLI: generate kernel profile to profile.json
+CLI -> Generate: run()
+Generate -> Source: load()
+Source -> Runner: run(CommandSpec for /proc/iomem)
+Runner --> Source: command output
+Source -> Source: parse observed ranges and collection diagnostics
+Source --> Generate: PlatformProfile
+Generate -> Writer: write(profile, output_path)
+Writer -> File: serialize existing producer fields
+Generate --> CLI: complete
+CLI --> User: exit status
+
+== Later, through the Python analysis API ==
+Caller -> Loader: load(ProfileSelection(path))
+Loader -> File: read UTF-8 JSON
+File --> Loader: original JSON object
+Loader -> Loader: validate JSON; freeze objects and arrays
+Loader --> Caller: AnalysisProfile(filename, data)
+note over Caller, Loader
+  No path -> empty default.
+  Invalid explicit input -> ProfileLoadError.
+  No conversion or automatic security classification.
+end note
+@enduml
