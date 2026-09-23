@@ -2,8 +2,12 @@
 set -euo pipefail
 
 scripts/generate-kaitai
-cc -shared -fPIC -I tools/semantic_ir/src \
-  tools/semantic_ir/src/parser.c -o tools/semantic_ir/parser.so
+
+for grammar_src in tools/*/src/parser.c; do
+  [ -e "${grammar_src}" ] || continue
+  grammar_dir=$(dirname "$(dirname "${grammar_src}")")
+  cc -shared -fPIC -I "${grammar_dir}/src" "${grammar_src}" -o "${grammar_dir}/parser.so"
+done
 
 ruff check .
 PYLINTHOME=.pylint.d pylint src tests
