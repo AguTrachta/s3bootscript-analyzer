@@ -99,27 +99,32 @@ def build_parser() -> argparse.ArgumentParser:
         action="store_true",
         help="Include opcode, length, and payload metadata in text output.",
     )
-    generate_profile = commands.add_parser(
-        "generate-profile", parents=[common], help="Generate a platform profile."
+    _configure_profile_parser(
+        commands.add_parser(
+            "generate-profile", parents=[common], help="Generate a platform profile."
+        )
     )
-    generate_profile.add_argument(
+    analyze = commands.add_parser(
+        "analyze", parents=[common, report_output], help="Analyze binary using rules."
+    )
+    configure_analysis_parser(analyze)
+    analyze.set_defaults(command_parser=analyze)
+    return parser
+
+
+def _configure_profile_parser(parser: argparse.ArgumentParser) -> None:
+    parser.add_argument(
         "--source",
         type=ProfileGenerationSource,
         choices=tuple(ProfileGenerationSource),
         required=True,
         help="Generate a platform profile from the selected source.",
     )
-    generate_profile.add_argument(
+    parser.add_argument(
         "--profile-output",
         type=Path,
         help="Path where the generated platform profile JSON should be written.",
     )
-    analyze = commands.add_parser(
-        "analyze", parents=[common, report_output], help="Analyze binary using rules."
-    )
-    configure_analysis_parser(analyze)
-    analyze.set_defaults(_command_parser=analyze)
-    return parser
 
 
 def main(argv: Sequence[str] | None = None) -> int:
@@ -135,7 +140,7 @@ def main(argv: Sequence[str] | None = None) -> int:
 
 def _validate_analysis_verbosity(args: argparse.Namespace) -> None:
     if args.command == "analyze" and args.debug and args.quiet:
-        args._command_parser.error("--quiet: not allowed with argument --debug")
+        args.command_parser.error("--quiet: not allowed with argument --debug")
 
 
 def _run(args: argparse.Namespace) -> int:
