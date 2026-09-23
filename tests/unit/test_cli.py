@@ -36,16 +36,47 @@ class CausedFailingDisassembler:
             raise BinaryLoadError("wrapped load failure") from ex
 
 
-def test_main_returns_success(capsys: CaptureFixture[str]) -> None:
-    exit_code = main([])
-    captured = capsys.readouterr()
+def test_main_requires_a_command(capsys: CaptureFixture[str]) -> None:
+    with pytest.raises(SystemExit) as error:
+        main([])
 
-    assert exit_code == EXIT_SUCCESS
-    assert "scaffold ready" in captured.out
+    assert error.value.code == 2
+    assert "required" in capsys.readouterr().err
+
+
+def test_main_help_lists_all_operations(capsys: CaptureFixture[str]) -> None:
+    with pytest.raises(SystemExit) as error:
+        main(["--help"])
+
+    help_text = capsys.readouterr().out
+    assert error.value.code == 0
+    assert "disassemble" in help_text
+    assert "analyze" in help_text
+    assert "generate-profile" in help_text
+
+
+@pytest.mark.parametrize(
+    "arguments",
+    [
+        ["disassemble"],
+        ["generate-profile"],
+        ["--input-binary", "input.bin"],
+        ["--generate-profile", "kernel"],
+        ["disassemble", "--input-binary", "input.bin", "--source", "kernel"],
+        ["generate-profile", "--source", "kernel", "--input-binary", "input.bin"],
+        ["generate-profile", "--source", "kernel", "--output-report", "output.json"],
+        ["disassemble", "--input-binary", "input.bin", "--output-format", "markdown"],
+    ],
+)
+def test_main_rejects_missing_commands_and_cross_command_options(arguments: list[str]) -> None:
+    with pytest.raises(SystemExit) as error:
+        main(arguments)
+
+    assert error.value.code == 2
 
 
 def test_main_reports_missing_input(tmp_path: Path, capsys: CaptureFixture[str]) -> None:
-    exit_code = main(["--input-binary", str(tmp_path / "missing.bin")])
+    exit_code = main(["disassemble", "--input-binary", str(tmp_path / "missing.bin")])
     captured = capsys.readouterr()
 
     assert exit_code == EXIT_FAILURE
@@ -70,7 +101,15 @@ def test_main_accepts_valid_output_formats(
     captured_renderer = _patch_successful_disassembler(monkeypatch)
 
     assert (
-        main(["--input-binary", str(tmp_path / "input.bin"), "--output-format", output_format])
+        main(
+            [
+                "disassemble",
+                "--input-binary",
+                str(tmp_path / "input.bin"),
+                "--output-format",
+                output_format,
+            ]
+        )
         == EXIT_SUCCESS
     )
 
@@ -80,7 +119,7 @@ def test_main_accepts_valid_output_formats(
 
 def test_main_rejects_invalid_output_format() -> None:
     with pytest.raises(SystemExit) as exc_info:
-        main(["--input-binary", "input.bin", "--output-format", "xml"])
+        main(["disassemble", "--input-binary", "input.bin", "--output-format", "xml"])
 
     assert exc_info.value.code == 2
 
@@ -92,7 +131,7 @@ def test_main_writes_output_to_stdout(
 ) -> None:
     _patch_successful_disassembler(monkeypatch, "stdout output\n")
 
-    exit_code = main(["--input-binary", str(tmp_path / "input.bin")])
+    exit_code = main(["disassemble", "--input-binary", str(tmp_path / "input.bin")])
     captured = capsys.readouterr()
 
     assert exit_code == EXIT_SUCCESS
@@ -105,6 +144,7 @@ def test_main_writes_output_to_file(tmp_path: Path, monkeypatch: MonkeyPatch) ->
 
     exit_code = main(
         [
+            "disassemble",
             "--input-binary",
             str(tmp_path / "input.bin"),
             "--output-report",
@@ -123,7 +163,7 @@ def test_main_accepts_debug_and_writes_diagnostics_to_stderr(
 ) -> None:
     _patch_successful_disassembler(monkeypatch)
 
-    exit_code = main(["--input-binary", str(tmp_path / "input.bin"), "--debug"])
+    exit_code = main(["disassemble", "--input-binary", str(tmp_path / "input.bin"), "--debug"])
     captured = capsys.readouterr()
 
     assert exit_code == EXIT_SUCCESS
@@ -147,7 +187,7 @@ def test_main_wraps_expected_analyzer_errors(
 
     monkeypatch.setattr(cli, "build_default_disassembler", fake_build_default_disassembler)
 
-    exit_code = main(["--input-binary", str(tmp_path / "input.bin")])
+    exit_code = main(["disassemble", "--input-binary", str(tmp_path / "input.bin")])
     captured = capsys.readouterr()
 
     assert exit_code == EXIT_FAILURE
@@ -170,7 +210,7 @@ def test_main_debug_logs_expected_analyzer_error_cause(
 
     monkeypatch.setattr(cli, "build_default_disassembler", fake_build_default_disassembler)
 
-    exit_code = main(["--input-binary", str(tmp_path / "input.bin"), "--debug"])
+    exit_code = main(["disassemble", "--input-binary", str(tmp_path / "input.bin"), "--debug"])
     captured = capsys.readouterr()
 
     assert exit_code == EXIT_FAILURE
@@ -189,7 +229,7 @@ def test_main_generates_proc_iomem_profile_to_stdout(
         "00001000-00001fff : System RAM\n",
     )
 
-    exit_code = main(["--generate-profile", "proc-iomem"])
+    exit_code = main(["generate-profile", "--source", "proc-iomem"])
     captured = capsys.readouterr()
 
     assert exit_code == EXIT_SUCCESS
@@ -221,7 +261,8 @@ def test_main_generates_proc_iomem_profile_to_file(
 
     exit_code = main(
         [
-            "--generate-profile",
+            "generate-profile",
+            "--source",
             "proc-iomem",
             "--profile-output",
             str(output_path),
@@ -249,7 +290,7 @@ def test_main_generates_kernel_iomem_profile_to_stdout(
         "00001000-00001fff : Kernel code\n",
     )
 
-    exit_code = main(["--generate-profile", "kernel"])
+    exit_code = main(["generate-profile", "--source", "kernel"])
     captured = capsys.readouterr()
 
     assert exit_code == EXIT_SUCCESS
@@ -281,7 +322,8 @@ def test_main_generates_kernel_iomem_profile_to_file(
 
     exit_code = main(
         [
-            "--generate-profile",
+            "generate-profile",
+            "--source",
             "kernel",
             "--profile-output",
             str(output_path),

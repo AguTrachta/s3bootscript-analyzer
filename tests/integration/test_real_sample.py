@@ -70,7 +70,9 @@ def test_kaitai_parser_debug_logs_malformed_input_context(
 
 
 def test_cli_text_output_for_real_sample(capsys: CaptureFixture[str]) -> None:
-    exit_code = main(["--input-binary", str(SAMPLE_BINARY), "--output-format", "text"])
+    exit_code = main(
+        ["disassemble", "--input-binary", str(SAMPLE_BINARY), "--output-format", "text"]
+    )
     captured = capsys.readouterr()
 
     assert exit_code == EXIT_SUCCESS
@@ -82,7 +84,9 @@ def test_cli_text_output_for_real_sample(capsys: CaptureFixture[str]) -> None:
 
 
 def test_cli_json_output_for_real_sample(capsys: CaptureFixture[str]) -> None:
-    exit_code = main(["--input-binary", str(SAMPLE_BINARY), "--output-format", "json"])
+    exit_code = main(
+        ["disassemble", "--input-binary", str(SAMPLE_BINARY), "--output-format", "json"]
+    )
     captured = capsys.readouterr()
     data = json.loads(captured.out)
 
@@ -102,7 +106,9 @@ def test_cli_json_output_for_real_sample(capsys: CaptureFixture[str]) -> None:
 
 
 def test_cli_semantic_output_matches_stable_golden(capsys: CaptureFixture[str]) -> None:
-    exit_code = main(["--input-binary", str(SAMPLE_BINARY), "--output-format", "semantic"])
+    exit_code = main(
+        ["disassemble", "--input-binary", str(SAMPLE_BINARY), "--output-format", "semantic"]
+    )
     captured = capsys.readouterr()
 
     assert exit_code == EXIT_SUCCESS
