@@ -1,0 +1,62 @@
+@startuml
+title Profile generation and direct JSON loading
+left to right direction
+skinparam shadowing false
+skinparam classAttributeIconSize 0
+hide empty members
+
+package "Existing Linux producer" {
+  class GenerateProfile {
+    run(): None
+  }
+  interface ProfileLoader {
+    load(): PlatformProfile
+  }
+  class KernelProfileLoader
+  class ProcIomemProfileLoader
+  class PlatformProfile {
+    source: str
+    ranges: list<ProfileRange>
+    diagnostics: list<ProfileDiagnostic>
+    schema_version: int
+  }
+  class ProfileRange {
+    name: str
+    start: int
+    end: int
+    source_label: str
+  }
+  class JsonProfileWriter {
+    write(profile, output_path): None
+    render(profile): str
+  }
+  GenerateProfile --> ProfileLoader
+  ProfileLoader <|.. KernelProfileLoader
+  ProfileLoader <|.. ProcIomemProfileLoader
+  ProfileLoader --> PlatformProfile
+  PlatformProfile o-- ProfileRange
+  GenerateProfile --> JsonProfileWriter
+}
+class "profile.json" as File <<file>>
+class JsonProfileLoader {
+  load(selection): AnalysisProfile
+}
+class AnalysisProfile <<immutable>> {
+  name: str
+  data: JsonObject
+  require_fields(fields): None
+}
+JsonProfileWriter --> File : writes facts + diagnostics
+File --> JsonProfileLoader : read the same JSON
+JsonProfileLoader --> AnalysisProfile
+
+note bottom of PlatformProfile
+  Producer-local model.
+  Other producers may write unrelated JSON objects.
+end note
+note bottom of AnalysisProfile
+  Read-only JSON values, not a memory schema.
+  Field interpretation belongs to declarative conditions.
+  No classification adapter or second profile file.
+end note
+@enduml
