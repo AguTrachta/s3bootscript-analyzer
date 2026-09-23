@@ -123,6 +123,12 @@
 
               (cd "$REPO_ROOT" && bash scripts/generate-kaitai)
 
+              for grammar_src in "$REPO_ROOT"/tools/*/src/parser.c; do
+                [ -e "$grammar_src" ] || continue
+                grammar_dir=$(dirname "$(dirname "$grammar_src")")
+                cc -shared -fPIC -I "$grammar_dir/src" "$grammar_src" -o "$grammar_dir/parser.so"
+              done
+
               echo "Loaded S3 Boot Script Analyzer dev shell"
               echo "Python: $(python --version)"
               echo "uv: $(uv --version)"
