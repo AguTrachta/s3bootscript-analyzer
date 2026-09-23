@@ -11,18 +11,22 @@ The CLI also supports disassembly and Linux profile generation.
 - Nix with flakes enabled for the reproducible development environment
 - GNU/Linux for profile generation from `/proc/iomem`
 
-Enter the development environment:
+Before first use, install `git-lfs` and pull the sample binaries:
+
+```bash
+sudo apt-get install -y git-lfs
+git lfs install --skip-repo
+git lfs pull
+```
+
+Then enter the development environment:
 
 ```bash
 nix develop
 ```
 
-Run the following from the repository root before using analysis to build its
-matching grammar:
-
-```bash
-nix develop -c scripts/build-semantic-grammar
-```
+`--generate-profile proc-iomem`/`kernel` prompts for your `sudo` password
+interactively when it runs.
 
 ## Analyze a binary
 
@@ -197,7 +201,7 @@ Custom Python adapters must inherit their abstract base class contracts and
 implement the declared abstract operations.
 
 `AstGrepMatcher` provides structural matching through the CLI and Python API.
-Build its grammar using the preparation command above before running analysis.
+`nix develop` builds its grammar automatically.
 Conditions must return a Boolean; invalid expressions and evaluation failures
 become rule errors. Each candidate uses isolated captures, and `profile` is reserved.
 Rules in `rules/base/` are analyzer rule documents; they are not native ast-grep
