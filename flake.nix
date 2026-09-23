@@ -121,6 +121,8 @@
               unset PYTHONPATH
               export REPO_ROOT=$(git rev-parse --show-toplevel)
 
+              (cd "$REPO_ROOT" && bash scripts/generate-kaitai)
+
               echo "Loaded S3 Boot Script Analyzer dev shell"
               echo "Python: $(python --version)"
               echo "uv: $(uv --version)"
