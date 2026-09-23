@@ -25,8 +25,8 @@ Then enter the development environment:
 nix develop
 ```
 
-`--generate-profile proc-iomem`/`kernel` prompts for your `sudo` password
-interactively when it runs.
+`generate-profile --source proc-iomem` and `generate-profile --source kernel`
+prompt for your `sudo` password interactively when they run.
 
 ## Analyze a binary
 
@@ -87,14 +87,14 @@ and JSON disassembly formats below do not select a different rule input.
 Print decoded opcodes:
 
 ```bash
-nix develop -c s3bootscript-analyzer \
+nix develop -c s3bootscript-analyzer disassemble \
   --input-binary samples/binaries/s3bootscript.bin
 ```
 
 Write JSON output:
 
 ```bash
-nix develop -c s3bootscript-analyzer \
+nix develop -c s3bootscript-analyzer disassemble \
   --input-binary samples/binaries/s3bootscript.bin \
   --output-format json \
   --output-report /tmp/s3bootscript.json
@@ -103,7 +103,7 @@ nix develop -c s3bootscript-analyzer \
 Print semantic IR:
 
 ```bash
-nix develop -c s3bootscript-analyzer \
+nix develop -c s3bootscript-analyzer disassemble \
   --input-binary samples/binaries/s3bootscript.bin \
   --output-format semantic
 ```
@@ -129,16 +129,16 @@ diagnostic logging to standard error. Supported output formats are `text`,
 Generate selected memory ranges from Linux `/proc/iomem`:
 
 ```bash
-nix develop -c s3bootscript-analyzer \
-  --generate-profile proc-iomem \
+nix develop -c s3bootscript-analyzer generate-profile \
+  --source proc-iomem \
   --profile-output /tmp/platform.json
 ```
 
 Generate only kernel ranges:
 
 ```bash
-nix develop -c s3bootscript-analyzer \
-  --generate-profile kernel \
+nix develop -c s3bootscript-analyzer generate-profile \
+  --source kernel \
   --profile-output /tmp/kernel.json
 ```
 

@@ -46,18 +46,13 @@ def configure_analysis_parser(parser: argparse.ArgumentParser) -> None:
     )
     parser.add_argument("--profile", type=Path, help="Profile JSON path; defaults to empty facts.")
     parser.add_argument(
-        "-or", "--output-report", type=Path, help="Report path; defaults to stdout."
-    )
-    parser.add_argument(
         "-of",
         "--output-format",
         choices=("markdown", "html"),
         default="markdown",
         help="Report format; defaults to markdown.",
     )
-    verbosity = parser.add_mutually_exclusive_group()
-    verbosity.add_argument("--debug", action="store_true")
-    verbosity.add_argument("--quiet", action="store_true")
+    parser.add_argument("--quiet", action="store_true")
 
 
 def build_report_renderer(output_format: str) -> ReportRenderer:
