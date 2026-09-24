@@ -37,7 +37,6 @@ from s3bootscript_analyzer.reporting import (
 
 __all__ = ["EXIT_FAILURE", "EXIT_SUCCESS", "build_parser", "build_report_renderer", "main"]
 
-READY_MESSAGE = "s3bootscript-analyzer scaffold ready."
 DEBUG_LOG_FORMAT = "Debug: %(message)s"
 _LOGGER = logging.getLogger(__name__)
 
@@ -60,21 +59,33 @@ class ProfileGenerationSource(StrEnum):
 def build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(
         prog="s3bootscript-analyzer",
-        description="Disassemble UEFI S3 Boot Script binaries.",
+        description="Disassemble and analyze UEFI S3 Boot Scripts or generate a platform profile.",
     )
-    parser.add_argument(
-        "-i",
-        "--input-binary",
-        type=Path,
-        help="Path to the S3 Boot Script binary to disassemble.",
+    common = argparse.ArgumentParser(add_help=False)
+    common.add_argument(
+        "--debug",
+        action="store_true",
+        help="Write diagnostic messages to stderr.",
     )
-    parser.add_argument(
+    report_output = argparse.ArgumentParser(add_help=False)
+    report_output.add_argument(
         "-or",
         "--output-report",
         type=Path,
         help="Path where the rendered output should be written.",
     )
-    parser.add_argument(
+    commands = parser.add_subparsers(dest="command", required=True)
+    disassemble = commands.add_parser(
+        "disassemble", parents=[common, report_output], help="Disassemble an S3 Boot Script binary."
+    )
+    disassemble.add_argument(
+        "-i",
+        "--input-binary",
+        type=Path,
+        required=True,
+        help="Path to the S3 Boot Script binary to disassemble.",
+    )
+    disassemble.add_argument(
         "-of",
         "--output-format",
         type=OutputFormat,
@@ -82,21 +93,31 @@ def build_parser() -> argparse.ArgumentParser:
         default=OutputFormat.TEXT,
         help="Output format to render.",
     )
-    parser.add_argument(
+    disassemble.add_argument(
         "-v",
         "--verbose",
         action="store_true",
         help="Include opcode, length, and payload metadata in text output.",
     )
-    parser.add_argument(
-        "--debug",
-        action="store_true",
-        help="Write diagnostic messages to stderr while disassembling.",
+    _configure_profile_parser(
+        commands.add_parser(
+            "generate-profile", parents=[common], help="Generate a platform profile."
+        )
     )
+    analyze = commands.add_parser(
+        "analyze", parents=[common, report_output], help="Analyze binary using rules."
+    )
+    configure_analysis_parser(analyze)
+    analyze.set_defaults(command_parser=analyze)
+    return parser
+
+
+def _configure_profile_parser(parser: argparse.ArgumentParser) -> None:
     parser.add_argument(
-        "--generate-profile",
+        "--source",
         type=ProfileGenerationSource,
         choices=tuple(ProfileGenerationSource),
+        required=True,
         help="Generate a platform profile from the selected source.",
     )
     parser.add_argument(
@@ -104,33 +125,37 @@ def build_parser() -> argparse.ArgumentParser:
         type=Path,
         help="Path where the generated platform profile JSON should be written.",
     )
-    commands = parser.add_subparsers(dest="command")
-    configure_analysis_parser(commands.add_parser("analyze", help="Analyze binary using rules."))
-    return parser
 
 
 def main(argv: Sequence[str] | None = None) -> int:
     args = build_parser().parse_args(argv)
+    _validate_analysis_verbosity(args)
     _configure_logging(args.debug)
     if args.command == "analyze":
         return run_analysis(args, build_report_renderer)
+    if args.command == "generate-profile":
+        return _generate_profile(args.source, args.profile_output)
     return _run(args)
 
 
+def _validate_analysis_verbosity(args: argparse.Namespace) -> None:
+    if args.command == "analyze" and args.debug and args.quiet:
+        args.command_parser.error("--quiet: not allowed with argument --debug")
+
+
 def _run(args: argparse.Namespace) -> int:
-    if args.generate_profile == ProfileGenerationSource.PROC_IOMEM:
-        return _generate_proc_iomem_profile(args.profile_output)
-    if args.generate_profile == ProfileGenerationSource.PROC_IOMEM_KERNEL:
-        return _generate_kernel_iomem_profile(args.profile_output)
-    if args.input_binary is None:
-        print(READY_MESSAGE)
-        return EXIT_SUCCESS
     return _disassemble(
         args.input_binary,
         args.output_report,
         _build_renderer(args.output_format, args.verbose),
         args.verbose,
     )
+
+
+def _generate_profile(source: ProfileGenerationSource, profile_output: Path | None) -> int:
+    if source == ProfileGenerationSource.PROC_IOMEM:
+        return _generate_proc_iomem_profile(profile_output)
+    return _generate_kernel_iomem_profile(profile_output)
 
 
 def _generate_proc_iomem_profile(
