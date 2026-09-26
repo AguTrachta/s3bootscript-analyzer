@@ -10,7 +10,7 @@ import pytest
 from pytest import CaptureFixture, MonkeyPatch
 
 from s3bootscript_analyzer import cli
-from s3bootscript_analyzer.analysis import AnalysisReport, EvaluationOutcome, MatchEvidence
+from s3bootscript_analyzer.analysis import AnalysisReport, EvaluationOutcome
 from s3bootscript_analyzer.analysis.contracts import ReportRenderer
 
 RENDERED_REPORT = "Rendered analysis report\n"
@@ -104,23 +104,23 @@ def test_selected_profile_filters_binary_writes_and_preserves_evidence(
     profile = tmp_path / "producer.json"
     profile.write_text('{"address": 6144}', encoding="utf-8")
 
-    # Act
-    exit_code = cli.main(_arguments(binary_path, rule) + ["--profile", str(profile)])
-
-    # Assert
-    assert exit_code == 3
+    # Act / Assert
+    assert cli.main(_arguments(binary_path, rule) + ["--profile", str(profile)]) == 3
     assert renderer.reports[0].artifact_name == "two-writes.bin"
     assert renderer.reports[0].profile_name == "producer.json"
     assert renderer.reports[0].evaluations[0].outcome is EvaluationOutcome.MATCHED
-    assert renderer.reports[0].evaluations[0].evidence == (
-        MatchEvidence(
-            bindings={"ADDR": 0x1800, "VALUE": 1},
-            semantic_text="mem[0x1800] <- 0x01",
-            semantic_line=1,
-            record_index=0,
-            opcode_offset=0x0D,
-        ),
-    )
+    evidence = renderer.reports[0].evaluations[0].evidence
+    assert len(evidence) == 1
+    assert evidence[0].bindings == {"ADDR": 0x1800, "VALUE": 1}
+    assert evidence[0].semantic_text == "mem[0x1800] <- 0x01"
+    assert evidence[0].record_index == 0
+    assert evidence[0].opcode_offset == 0x0D
+    assert evidence[0].record["fields"] == {
+        "width": 0,
+        "count": 1,
+        "address": 0x1800,
+        "buffer": (1,),
+    }
 
 
 def test_no_matching_writes_returns_success(
