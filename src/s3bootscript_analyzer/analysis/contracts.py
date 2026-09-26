@@ -29,6 +29,7 @@ class ConditionEvaluator(ABC):
         condition: object,
         bindings: BindingSet,
         profile: JsonObject,
+        record: JsonObject,
     ) -> bool:
         """Evaluate captures and JSON facts without domain-specific interpretation."""
 

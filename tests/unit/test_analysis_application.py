@@ -75,6 +75,7 @@ class AcceptingConditions(ConditionEvaluator):
         _condition: object,
         _bindings: Mapping[str, bool | float | int | str],
         profile: JsonObject,
+        _record: JsonObject,
     ) -> bool:
         self.profiles.append(profile)
         return True

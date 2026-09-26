@@ -4,6 +4,7 @@ from __future__ import annotations
 
 from abc import ABC, abstractmethod
 from collections.abc import Iterable, Mapping
+from dataclasses import replace
 from typing import cast
 
 from s3bootscript_analyzer.analysis.contracts import RuleExecutionError
@@ -70,7 +71,9 @@ class S3BootScriptPlugin(AnalysisPlugin):
         except UnknownExtensionError as ex:
             raise RuleExecutionError(str(ex)) from ex
         semantic_document = cast(SemanticIrDocument, document)
-        return matcher.match(semantic_document, rule.matcher_config)
+        return _attach_records(
+            semantic_document, matcher.match(semantic_document, rule.matcher_config)
+        )
 
     def _register_matcher(self, matcher: _S3Matcher) -> None:
         if matcher.matcher_type in self._matchers:
@@ -92,3 +95,28 @@ class S3BootScriptPlugin(AnalysisPlugin):
     ) -> None:
         if document.plugin_id != self.plugin_id or rule.plugin_id != self.plugin_id:
             raise RuleExecutionError("S3 plugin received an incompatible document or rule")
+
+
+def _attach_records(
+    document: SemanticIrDocument,
+    matches: Iterable[MatchEvidence],
+) -> Iterable[MatchEvidence]:
+    for evidence in matches:
+        try:
+            source = document.source_for_line(evidence.semantic_line)
+            record = document.records[evidence.record_index]
+        except IndexError as ex:
+            raise RuleExecutionError(f"Invalid S3 record association: {ex}") from ex
+        if (
+            evidence.record_index,
+            evidence.opcode_offset,
+            source.record_index,
+            source.opcode_offset,
+        ) != (
+            record.record_index,
+            record.offset,
+            record.record_index,
+            record.offset,
+        ):
+            raise RuleExecutionError("S3 evidence does not match its binary record")
+        yield replace(evidence, record=record.context)

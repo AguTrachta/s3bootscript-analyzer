@@ -23,15 +23,23 @@ class SimpleEvalConditionEvaluator(ConditionEvaluator):
         condition: object,
         bindings: BindingSet,
         profile: JsonObject,
+        record: JsonObject,
     ) -> bool:
         if "profile" in bindings:
             raise RuleExecutionError("Capture cannot replace reserved name 'profile'")
-        try:
-            result = EvalWithCompoundTypes(
-                names={**bindings, "profile": profile}, functions={"any": any}, allowed_attrs={}
-            ).eval("", previously_parsed=condition)
-        except (InvalidExpression, LookupError, TypeError, ValueError, ArithmeticError) as error:
-            raise RuleExecutionError(str(error)) from error
+        if "record" in bindings:
+            raise RuleExecutionError("Capture cannot replace reserved name 'record'")
+        result = _evaluate_expression(condition, {**bindings, "profile": profile, "record": record})
         if not isinstance(result, bool):
             raise RuleExecutionError("Condition must return a boolean")
         return result
+
+
+def _evaluate_expression(condition: object, names: dict[str, object]) -> object:
+    """Translate expression failures into rule-scoped errors."""
+    try:
+        return EvalWithCompoundTypes(names=names, functions={"any": any}, allowed_attrs={}).eval(
+            "", previously_parsed=condition
+        )
+    except (InvalidExpression, LookupError, TypeError, ValueError, ArithmeticError) as error:
+        raise RuleExecutionError(str(error)) from error

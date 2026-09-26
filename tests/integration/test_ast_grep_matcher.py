@@ -24,6 +24,7 @@ from s3bootscript_analyzer.analysis.contracts import ConditionEvaluator
 from s3bootscript_analyzer.ir.semantic import (
     SemanticIrBuilder,
     SemanticIrDocument,
+    SemanticRecord,
     SemanticSourceReference,
 )
 from s3bootscript_analyzer.matchers import AstGrepMatcher
@@ -67,6 +68,7 @@ def test_memory_writes_retain_numeric_captures_and_binary_origins_in_source_orde
             semantic_line=1,
             record_index=2,
             opcode_offset=0x30,
+            record=document.records[2].context,
         ),
         MatchEvidence(
             bindings={"ADDR": 0x1000, "VALUE": 42},
@@ -74,6 +76,7 @@ def test_memory_writes_retain_numeric_captures_and_binary_origins_in_source_orde
             semantic_line=3,
             record_index=7,
             opcode_offset=0x90,
+            record=document.records[7].context,
         ),
     )
 
@@ -115,6 +118,7 @@ def test_literal_memory_write_rule_delivers_evidence_without_captures() -> None:
             semantic_line=1,
             record_index=2,
             opcode_offset=0x30,
+            record=document.records[2].context,
         ),
     )
 
@@ -216,6 +220,7 @@ def test_invalid_native_rule_is_reported_and_a_later_rule_still_delivers_evidenc
     document = SemanticIrDocument(
         text="mem[0x9000] <- 0x01\n",
         source_map=(SemanticSourceReference(1, 2, 0x30),),
+        records=_mixed_script().records,
     )
     engine = AnalysisEngine(condition_evaluator=Mock(spec=ConditionEvaluator))
 
@@ -237,6 +242,7 @@ def test_invalid_native_rule_is_reported_and_a_later_rule_still_delivers_evidenc
             semantic_line=1,
             record_index=2,
             opcode_offset=0x30,
+            record=document.records[2].context,
         ),
     )
 
@@ -265,5 +271,17 @@ def _mixed_script() -> SemanticIrDocument:
             SemanticSourceReference(1, 2, 0x30),
             SemanticSourceReference(2, 4, 0x60),
             SemanticSourceReference(3, 7, 0x90),
+        ),
+        records=tuple(
+            SemanticRecord(
+                record_index=index,
+                offset={2: 0x30, 4: 0x60, 7: 0x90}.get(index, 0),
+                opcode_id=2,
+                opcode="MEM_WRITE",
+                length=3,
+                raw_bytes=b"\x02\x00\x03",
+                fields={},
+            )
+            for index in range(8)
         ),
     )
