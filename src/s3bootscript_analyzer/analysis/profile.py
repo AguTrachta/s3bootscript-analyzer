@@ -27,7 +27,7 @@ class AnalysisProfile:
 
     def __init__(self, name: str, data: Mapping[str, object]) -> None:
         object.__setattr__(self, "name", name)
-        object.__setattr__(self, "data", _freeze_object(data, 0))
+        object.__setattr__(self, "data", freeze_json_object(data))
 
     def require_fields(self, fields: tuple[str, ...]) -> None:
         """Require literal top-level keys without interpreting their values."""
@@ -36,6 +36,11 @@ class AnalysisProfile:
             raise MissingProfileDataError(
                 f"Required profile fields are unavailable: {', '.join(missing)}"
             )
+
+
+def freeze_json_object(value: Mapping[str, object]) -> JsonObject:
+    """Take an immutable, recursively typed snapshot of a JSON-shaped object."""
+    return _freeze_object(value, 0)
 
 
 def _freeze_object(value: Mapping[str, object], depth: int) -> JsonObject:
