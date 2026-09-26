@@ -18,7 +18,6 @@ from s3bootscript_analyzer.analysis import (
     AnalyzeArtifact,
     ConditionEvaluator,
     EvaluationOutcome,
-    MatchEvidence,
     ProfileSelection,
     RuleExecutionError,
     Severity,
@@ -55,15 +54,18 @@ def test_only_writes_inside_reported_kernel_code_reach_the_report(tmp_path: Path
     assert len(report.evaluations) == 1
     assert report.evaluations[0].outcome is EvaluationOutcome.MATCHED
     assert report.evaluations[0].rule.severity is Severity.WARNING
-    assert report.evaluations[0].evidence == (
-        MatchEvidence(
-            bindings={"ADDR": 0x1800, "VALUE": 1},
-            semantic_text="mem[0x1800] <- 0x01",
-            semantic_line=1,
-            record_index=0,
-            opcode_offset=0x0D,
-        ),
-    )
+    evidence = report.evaluations[0].evidence
+    assert len(evidence) == 1
+    assert evidence[0].bindings == {"ADDR": 0x1800, "VALUE": 1}
+    assert evidence[0].semantic_text == "mem[0x1800] <- 0x01"
+    assert evidence[0].record_index == 0
+    assert evidence[0].opcode_offset == 0x0D
+    assert evidence[0].record["fields"] == {
+        "width": 0,
+        "count": 1,
+        "address": 0x1800,
+        "buffer": (1,),
+    }
 
 
 def test_writes_outside_reported_kernel_code_produce_no_finding(tmp_path: Path) -> None:
@@ -82,6 +84,25 @@ def test_writes_outside_reported_kernel_code_produce_no_finding(tmp_path: Path) 
     assert report.evaluations[0].outcome is EvaluationOutcome.NOT_MATCHED
     assert report.evaluations[0].evidence == ()
     assert report.evaluations[0].diagnostics == ()
+
+
+@pytest.mark.parametrize(
+    ("limit", "expected"),
+    [(1, EvaluationOutcome.MATCHED), (0, EvaluationOutcome.NOT_MATCHED)],
+)
+def test_rule_can_filter_on_raw_count_not_present_in_semantic_text(
+    tmp_path: Path, limit: int, expected: EvaluationOutcome
+) -> None:
+    use_case = _analysis()
+    request = _request(
+        tmp_path,
+        (_memory_write_rule("S3-COUNT", 'record["fields"]["count"] <= profile["limit"]'),),
+        {"limit": limit},
+    )
+
+    report = use_case.execute(request)
+
+    assert report.evaluations[0].outcome is expected
 
 
 def test_failed_condition_is_reported_and_a_later_rule_still_finds_a_write(tmp_path: Path) -> None:
@@ -114,6 +135,25 @@ def test_failed_condition_is_reported_and_a_later_rule_still_finds_a_write(tmp_p
     assert tuple(item.bindings["ADDR"] for item in report.evaluations[1].evidence) == (0x1800,)
 
 
+def test_missing_record_field_reports_error_and_later_rule_continues(tmp_path: Path) -> None:
+    request = _request(
+        tmp_path,
+        (
+            _memory_write_rule("S3-MISSING", 'record["fields"]["missing"] == 1'),
+            _memory_write_rule("S3-COUNT", 'record["fields"]["count"] == 1'),
+        ),
+        {},
+    )
+
+    report = _analysis().execute(request)
+
+    assert [item.outcome for item in report.evaluations] == [
+        EvaluationOutcome.ERROR,
+        EvaluationOutcome.MATCHED,
+    ]
+    assert "missing" in report.evaluations[0].diagnostics[0].message
+
+
 def test_count_within_a_producers_nested_limit_is_accepted() -> None:
     # Arrange
     evaluator = _evaluator()
@@ -121,7 +161,7 @@ def test_count_within_a_producers_nested_limit_is_accepted() -> None:
     profile = AnalysisProfile(name="producer", data={"limits": {"maximum_count": 128}})
 
     # Act
-    accepted = evaluator.evaluate(condition, {"COUNT": 64}, profile.data)
+    accepted = evaluator.evaluate(condition, {"COUNT": 64}, profile.data, {})
 
     # Assert
     assert accepted is True
@@ -134,7 +174,7 @@ def test_identifier_outside_a_producers_allowed_list_is_rejected() -> None:
     profile = AnalysisProfile(name="producer", data={"allowed_identifiers": ["alpha", "beta"]})
 
     # Act
-    accepted = evaluator.evaluate(condition, {"IDENTIFIER": "gamma"}, profile.data)
+    accepted = evaluator.evaluate(condition, {"IDENTIFIER": "gamma"}, profile.data, {})
 
     # Assert
     assert accepted is False
@@ -147,7 +187,7 @@ def test_a_producers_auditing_flag_can_decide_a_condition() -> None:
     profile = AnalysisProfile(name="producer", data={"features": {"auditing_required": True}})
 
     # Act
-    accepted = evaluator.evaluate(condition, {}, profile.data)
+    accepted = evaluator.evaluate(condition, {}, profile.data, {})
 
     # Assert
     assert accepted is True
@@ -196,7 +236,7 @@ def test_failed_condition_never_becomes_an_accepted_or_rejected_candidate(
 
     # Act / Assert
     with pytest.raises(RuleExecutionError):
-        evaluator.evaluate(condition, {"COUNT": 1}, profile.data)
+        evaluator.evaluate(condition, {"COUNT": 1}, profile.data, {})
 
 
 @pytest.mark.parametrize(
@@ -230,7 +270,7 @@ def test_address_comparisons_preserve_exact_integer_values(
     condition = evaluator.compile('ADDR == profile["address"]')
 
     # Act
-    accepted = evaluator.evaluate(condition, {"ADDR": address}, profile.data)
+    accepted = evaluator.evaluate(condition, {"ADDR": address}, profile.data, {})
 
     # Assert
     assert accepted is expected
@@ -241,11 +281,11 @@ def test_later_candidate_cannot_inherit_an_earlier_candidates_capture() -> None:
     evaluator = _evaluator()
     condition = evaluator.compile('ENTRY == profile["allowed_entry"]')
     profile = AnalysisProfile(name="producer", data={"allowed_entry": 0x1000})
-    evaluator.evaluate(condition, {"ENTRY": 0x1000}, profile.data)
+    evaluator.evaluate(condition, {"ENTRY": 0x1000}, profile.data, {})
 
     # Act / Assert
     with pytest.raises(RuleExecutionError, match="ENTRY"):
-        evaluator.evaluate(condition, {}, profile.data)
+        evaluator.evaluate(condition, {}, profile.data, {})
 
 
 def test_capture_cannot_replace_the_reserved_profile() -> None:
@@ -256,7 +296,27 @@ def test_capture_cannot_replace_the_reserved_profile() -> None:
 
     # Act / Assert
     with pytest.raises(RuleExecutionError, match="profile"):
-        evaluator.evaluate(condition, {"profile": True}, profile.data)
+        evaluator.evaluate(condition, {"profile": True}, profile.data, {})
+
+
+def test_condition_can_read_raw_record_fields_without_changing_captures() -> None:
+    evaluator = _evaluator()
+    condition = evaluator.compile('record["fields"]["count"] <= profile["limit"]')
+    profile = AnalysisProfile(name="producer", data={"limit": 2})
+
+    accepted = evaluator.evaluate(
+        condition, {"ADDR": 0x1800}, profile.data, {"fields": {"count": 1}}
+    )
+
+    assert accepted is True
+
+
+def test_record_capture_is_rejected_by_direct_condition_evaluation() -> None:
+    evaluator = _evaluator()
+    condition = evaluator.compile('record["fields"]["count"] == 1')
+
+    with pytest.raises(RuleExecutionError, match="record"):
+        evaluator.evaluate(condition, {"record": 1}, {}, {"fields": {"count": 1}})
 
 
 def _evaluator() -> ConditionEvaluator:

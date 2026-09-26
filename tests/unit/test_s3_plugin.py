@@ -1,6 +1,7 @@
 """Behavior contract for the trusted S3 plugin facade."""
 
 from collections.abc import Iterable, Mapping
+from dataclasses import replace
 from pathlib import Path
 
 import pytest
@@ -14,6 +15,7 @@ from s3bootscript_analyzer.analysis import (
 from s3bootscript_analyzer.extensions import DuplicateExtensionError
 from s3bootscript_analyzer.ingest import BinarySource
 from s3bootscript_analyzer.ir import SemanticIrBuilder, SemanticIrDocument
+from s3bootscript_analyzer.ir.semantic import SemanticRecord, SemanticSourceReference
 from s3bootscript_analyzer.parsers.raw import BootScriptRawParser, RawBootScript, RawTableHeader
 from s3bootscript_analyzer.plugins import S3BootScriptPlugin
 from s3bootscript_analyzer.plugins.s3 import _S3Matcher
@@ -43,12 +45,15 @@ class StaticSemanticBuilder(SemanticIrBuilder):
 class StaticMatcher(_S3Matcher):
     matcher_type = "ast_grep"
 
+    def __init__(self, evidence: MatchEvidence | None = None) -> None:
+        self._evidence = evidence or _evidence()
+
     def match(
         self,
         _document: SemanticIrDocument,
         _config: Mapping[str, object],
     ) -> Iterable[MatchEvidence]:
-        return (_evidence(),)
+        return (self._evidence,)
 
 
 def test_s3_plugin_reuses_existing_parser_and_semantic_builder() -> None:
@@ -68,14 +73,25 @@ def test_s3_plugin_delivers_evidence_from_its_private_adapter() -> None:
     # Arrange
     matcher = StaticMatcher()
     plugin = S3BootScriptPlugin(StaticRawParser(), StaticSemanticBuilder(), [matcher])
-    document = SemanticIrDocument(text="call 0x8000\n", source_map=())
+    document = _document()
     rule = _rule()
 
     # Act
     evidence = tuple(plugin.match(document, rule))
 
     # Assert
-    assert evidence == (_evidence(),)
+    assert evidence == (replace(_evidence(), record=document.records[0].context),)
+
+
+def test_s3_plugin_rejects_a_broken_record_join() -> None:
+    plugin = S3BootScriptPlugin(
+        StaticRawParser(),
+        StaticSemanticBuilder(),
+        [StaticMatcher(replace(_evidence(), record_index=1))],
+    )
+
+    with pytest.raises(RuleExecutionError, match="record association"):
+        tuple(plugin.match(_document(), _rule()))
 
 
 def test_s3_plugin_rejects_an_unknown_matcher() -> None:
@@ -119,4 +135,14 @@ def _evidence() -> MatchEvidence:
         semantic_line=1,
         record_index=0,
         opcode_offset=0x0D,
+    )
+
+
+def _document() -> SemanticIrDocument:
+    return SemanticIrDocument(
+        text="call 0x8000\n",
+        source_map=(SemanticSourceReference(1, 0, 0x0D),),
+        records=(
+            SemanticRecord(0, 0x0D, 0x08, "DISPATCH", 11, b"\x08\x00", {"entry_point": 0x8000}),
+        ),
     )

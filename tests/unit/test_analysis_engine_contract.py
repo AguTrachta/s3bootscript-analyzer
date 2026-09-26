@@ -56,7 +56,9 @@ class StaticConditionEvaluator(ConditionEvaluator):
     def __init__(self, result: bool = True) -> None:
         self._result = result
         self.compiled: list[str] = []
-        self.activations: list[tuple[Mapping[str, bool | float | int | str], JsonObject]] = []
+        self.activations: list[
+            tuple[Mapping[str, bool | float | int | str], JsonObject, JsonObject]
+        ] = []
 
     def compile(self, expression: str) -> object:
         self.compiled.append(expression)
@@ -67,8 +69,9 @@ class StaticConditionEvaluator(ConditionEvaluator):
         _condition: object,
         bindings: Mapping[str, bool | float | int | str],
         profile: JsonObject,
+        record: JsonObject,
     ) -> bool:
-        self.activations.append((bindings, profile))
+        self.activations.append((bindings, profile, record))
         return self._result
 
 
@@ -141,7 +144,19 @@ def test_engine_passes_arbitrary_profile_facts_to_evaluator(facts: dict[str, obj
     )[0]
 
     assert evaluation.outcome is EvaluationOutcome.MATCHED
-    assert evaluator.activations == [(_evidence().bindings, profile.data)]
+    assert evaluator.activations == [(_evidence().bindings, profile.data, _evidence().record)]
+
+
+@pytest.mark.parametrize("reserved_name", ["profile", "record"])
+def test_reserved_capture_is_an_error_even_without_a_condition(reserved_name: str) -> None:
+    conflicting = replace(_evidence(), bindings={reserved_name: "capture"})
+
+    evaluations = _engine().evaluate(
+        StaticDocument(), [_rule()], _profile(), StaticPlugin([conflicting])
+    )
+
+    assert evaluations[0].outcome is EvaluationOutcome.ERROR
+    assert reserved_name in evaluations[0].diagnostics[0].message
 
 
 class FailingConditions(StaticConditionEvaluator):
