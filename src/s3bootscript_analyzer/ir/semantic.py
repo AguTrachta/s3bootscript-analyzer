@@ -2,9 +2,14 @@
 
 from __future__ import annotations
 
+from collections.abc import Mapping
 from dataclasses import dataclass, field
+from enum import IntEnum
+from types import MappingProxyType
+from typing import cast
 
 from s3bootscript_analyzer.analysis.models import Diagnostic
+from s3bootscript_analyzer.analysis.profile import JsonObject, freeze_json_object
 from s3bootscript_analyzer.engine.decoders import (
     get_opcode_fields,
     get_opcode_mnemonic,
@@ -48,11 +53,43 @@ class SemanticSourceReference(SemanticSource):
 
 
 @dataclass(frozen=True, slots=True)
+class SemanticRecord:
+    """Immutable facts decoded for one binary opcode record."""
+
+    record_index: int
+    offset: int
+    opcode_id: int
+    opcode: str
+    length: int
+    raw_bytes: bytes
+    fields: JsonObject
+
+    def __post_init__(self) -> None:
+        object.__setattr__(self, "fields", freeze_json_object(self.fields))
+
+    @property
+    def context(self) -> JsonObject:
+        """Expose JSON-shaped facts to generic conditions without mutable bytes."""
+        return MappingProxyType(
+            {
+                "record_index": self.record_index,
+                "offset": self.offset,
+                "opcode_id": self.opcode_id,
+                "opcode": self.opcode,
+                "length": self.length,
+                "raw_bytes": tuple(self.raw_bytes),
+                "fields": self.fields,
+            }
+        )
+
+
+@dataclass(frozen=True, slots=True)
 class SemanticIrDocument(AnalysisDocument, SemanticDocument):
     """Existing S3 semantic text plus evidence traceability."""
 
     text: str = field()
     source_map: tuple[SemanticSourceReference, ...]
+    records: tuple[SemanticRecord, ...] = ()
     diagnostics: tuple[Diagnostic, ...] = ()
     plugin_id: str = field(default=S3_BOOT_SCRIPT_PLUGIN_ID, init=False)
 
@@ -72,6 +109,9 @@ class SemanticIrBuilder:
         return SemanticIrDocument(
             text=_render_document_text(statements),
             source_map=_build_source_map(statements),
+            records=tuple(
+                _semantic_record(index, record) for index, record in enumerate(raw_script.records)
+            ),
         )
 
 
@@ -80,6 +120,29 @@ class _SemanticStatement:
     text: str
     record_index: int
     opcode_offset: int
+
+
+def _semantic_record(index: int, record: RawOpcodeRecord) -> SemanticRecord:
+    fields: Mapping[str, object] = {
+        name: _raw_field(getattr(record.body, name)) for name in get_opcode_fields(record.opcode_id)
+    }
+    return SemanticRecord(
+        record_index=index,
+        offset=record.offset,
+        opcode_id=int(record.opcode_id),
+        opcode=get_opcode_mnemonic(record.opcode_id),
+        length=record.length,
+        raw_bytes=bytes(record.raw_bytes),
+        fields=cast(JsonObject, fields),
+    )
+
+
+def _raw_field(value: object) -> object:
+    if isinstance(value, IntEnum):
+        return int(value)
+    if isinstance(value, (bytes, bytearray)):
+        return tuple(value)
+    return value
 
 
 def semantic_annotation(record: RawOpcodeRecord) -> str | None:
