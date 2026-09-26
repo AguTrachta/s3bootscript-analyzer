@@ -81,6 +81,8 @@ A match reflects the rule's condition and declared severity. An exit code of
 
 Analysis rules currently match semantic IR generated from the binary. The text
 and JSON disassembly formats below do not select a different rule input.
+For the rule format, available S3 record fields, and a complete example, see
+[Writing and contributing analysis rules](RULES-CONTRIBUTING.md).
 
 ## Disassemble a binary
 
@@ -193,8 +195,8 @@ The Python API includes:
 - Generic `profile.required_fields` checks for literal top-level JSON keys.
 - Per-rule outcomes: `matched`, `not_matched`, `unknown`, `error`, and `skipped`.
 - ast-grep JSON-stream decoding with numeric captures and binary traceability.
-- `SimpleEvalConditionEvaluator` for Boolean conditions over captures and generic
-  `profile` facts, including comprehensions with `any`.
+- `SimpleEvalConditionEvaluator` for Boolean conditions over captures, generic
+  `profile` facts, and the matched S3 `record`, including comprehensions with `any`.
 - An `AnalyzeArtifact` use case returning structured `AnalysisReport` values.
 
 Custom Python adapters must inherit their abstract base class contracts and
@@ -203,7 +205,9 @@ implement the declared abstract operations.
 `AstGrepMatcher` provides structural matching through the CLI and Python API.
 `nix develop` builds its grammar automatically.
 Conditions must return a Boolean; invalid expressions and evaluation failures
-become rule errors. Each candidate uses isolated captures, and `profile` is reserved.
+become rule errors. Each candidate uses isolated captures; `profile` and `record`
+are reserved names. The rule contribution guide documents the S3 record facts
+available to conditions and their current limitations.
 Rules in `rules/base/` are analyzer rule documents; they are not native ast-grep
 rule files and are not executed by the disassembly command.
 
