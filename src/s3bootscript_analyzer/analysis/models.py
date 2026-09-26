@@ -3,11 +3,13 @@
 from __future__ import annotations
 
 from collections.abc import Mapping
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from enum import StrEnum
 from pathlib import Path
 from types import MappingProxyType
 from typing import ClassVar
+
+from s3bootscript_analyzer.analysis.profile import JsonObject, freeze_json_object
 
 type BindingValue = bool | float | int | str
 type BindingSet = Mapping[str, BindingValue]
@@ -62,9 +64,11 @@ class MatchEvidence:
     semantic_line: int
     record_index: int
     opcode_offset: int
+    record: JsonObject = field(default_factory=dict)
 
     def __post_init__(self) -> None:
         object.__setattr__(self, "bindings", MappingProxyType(dict(self.bindings)))
+        object.__setattr__(self, "record", freeze_json_object(self.record))
 
 
 @dataclass(frozen=True)

@@ -90,12 +90,16 @@ class AnalysisEngine:
         compiled_condition: object | None,
         profile: JsonObject,
     ) -> bool:
+        for name in ("profile", "record"):
+            if name in evidence.bindings:
+                raise RuleExecutionError(f"Capture cannot replace reserved name '{name}'")
         if compiled_condition is None:
             return True
         return self._condition_evaluator.evaluate(
             compiled_condition,
             evidence.bindings,
             profile,
+            evidence.record,
         )
 
 
