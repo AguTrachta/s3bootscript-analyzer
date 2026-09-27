@@ -1,0 +1,223 @@
+{
+  "source": "proc_iomem",
+  "ranges": [
+    {
+      "name": "Reserved",
+      "start": 0,
+      "end": 4095,
+      "source_label": "Reserved"
+    },
+    {
+      "name": "System RAM",
+      "start": 4096,
+      "end": 196607,
+      "source_label": "System RAM"
+    },
+    {
+      "name": "Reserved",
+      "start": 196608,
+      "end": 327679,
+      "source_label": "Reserved"
+    },
+    {
+      "name": "System RAM",
+      "start": 327680,
+      "end": 647167,
+      "source_label": "System RAM"
+    },
+    {
+      "name": "Reserved",
+      "start": 647168,
+      "end": 655359,
+      "source_label": "Reserved"
+    },
+    {
+      "name": "PCI Bus 0000:00",
+      "start": 655360,
+      "end": 786431,
+      "source_label": "PCI Bus 0000:00"
+    },
+    {
+      "name": "System RAM",
+      "start": 1048576,
+      "end": 8388607,
+      "source_label": "System RAM"
+    },
+    {
+      "name": "ACPI Non-volatile Storage",
+      "start": 8388608,
+      "end": 8413183,
+      "source_label": "ACPI Non-volatile Storage"
+    },
+    {
+      "name": "System RAM",
+      "start": 8413184,
+      "end": 8417279,
+      "source_label": "System RAM"
+    },
+    {
+      "name": "ACPI Non-volatile Storage",
+      "start": 8417280,
+      "end": 8421375,
+      "source_label": "ACPI Non-volatile Storage"
+    },
+    {
+      "name": "System RAM",
+      "start": 8421376,
+      "end": 8433663,
+      "source_label": "System RAM"
+    },
+    {
+      "name": "ACPI Non-volatile Storage",
+      "start": 8433664,
+      "end": 8437759,
+      "source_label": "ACPI Non-volatile Storage"
+    },
+    {
+      "name": "System RAM",
+      "start": 8437760,
+      "end": 8462335,
+      "source_label": "System RAM"
+    },
+    {
+      "name": "Reserved",
+      "start": 8462336,
+      "end": 8466431,
+      "source_label": "Reserved"
+    },
+    {
+      "name": "System RAM",
+      "start": 8466432,
+      "end": 8470527,
+      "source_label": "System RAM"
+    },
+    {
+      "name": "ACPI Non-volatile Storage",
+      "start": 8470528,
+      "end": 27328511,
+      "source_label": "ACPI Non-volatile Storage"
+    },
+    {
+      "name": "System RAM",
+      "start": 27328512,
+      "end": 972820503,
+      "source_label": "System RAM"
+    },
+    {
+      "name": "Kernel code",
+      "start": 255852544,
+      "end": 272629759,
+      "source_label": "Kernel code"
+    },
+    {
+      "name": "Kernel rodata",
+      "start": 272629760,
+      "end": 283901951,
+      "source_label": "Kernel rodata"
+    },
+    {
+      "name": "Kernel data",
+      "start": 285212672,
+      "end": 287779007,
+      "source_label": "Kernel data"
+    },
+    {
+      "name": "Kernel bss",
+      "start": 296583168,
+      "end": 301989887,
+      "source_label": "Kernel bss"
+    },
+    {
+      "name": "System RAM",
+      "start": 972820504,
+      "end": 972976727,
+      "source_label": "System RAM"
+    },
+    {
+      "name": "System RAM",
+      "start": 972976728,
+      "end": 973115415,
+      "source_label": "System RAM"
+    },
+    {
+      "name": "System RAM",
+      "start": 973115416,
+      "end": 973154903,
+      "source_label": "System RAM"
+    },
+    {
+      "name": "System RAM",
+      "start": 973154904,
+      "end": 995020799,
+      "source_label": "System RAM"
+    },
+    {
+      "name": "Reserved",
+      "start": 995020800,
+      "end": 997642239,
+      "source_label": "Reserved"
+    },
+    {
+      "name": "ACPI Tables",
+      "start": 997642240,
+      "end": 997715967,
+      "source_label": "ACPI Tables"
+    },
+    {
+      "name": "ACPI Non-volatile Storage",
+      "start": 997715968,
+      "end": 998240255,
+      "source_label": "ACPI Non-volatile Storage"
+    },
+    {
+      "name": "System RAM",
+      "start": 998240256,
+      "end": 1006043135,
+      "source_label": "System RAM"
+    },
+    {
+      "name": "ACPI Non-volatile Storage",
+      "start": 1006043136,
+      "end": 1006632959,
+      "source_label": "ACPI Non-volatile Storage"
+    },
+    {
+      "name": "Reserved",
+      "start": 1006632960,
+      "end": 1073741823,
+      "source_label": "Reserved"
+    },
+    {
+      "name": "PCI Bus 0000:00",
+      "start": 1073741824,
+      "end": 3758096383,
+      "source_label": "PCI Bus 0000:00"
+    },
+    {
+      "name": "Reserved",
+      "start": 3758096384,
+      "end": 4026531839,
+      "source_label": "Reserved"
+    },
+    {
+      "name": "PCI Bus 0000:00",
+      "start": 4026531840,
+      "end": 4273995775,
+      "source_label": "PCI Bus 0000:00"
+    },
+    {
+      "name": "PCI Bus 0000:00",
+      "start": 824633720832,
+      "end": 858993459199,
+      "source_label": "PCI Bus 0000:00"
+    },
+    {
+      "name": "Reserved",
+      "start": 1086626725888,
+      "end": 1099511627775,
+      "source_label": "Reserved"
+    }
+  ],
+  "diagnostics": [],
+  "schema_version": 1
+}
