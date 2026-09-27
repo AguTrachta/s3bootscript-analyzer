@@ -1,0 +1,31 @@
+schema_version: 1
+plugin: s3bootscript
+
+metadata:
+  id: S3-DISPATCH2-MUTABLE-CONTEXT-001
+  title: DISPATCH_2 context in privileged-OS-writable memory
+  description: >-
+    A DISPATCH_2 context pointer falls inside an ACPI NVS range reported by the
+    selected platform profile. This rule treats that range as writable by the
+    privileged operating system before S3; the match does not establish the
+    contents or size of the context object.
+  severity: warning
+  enabled: true
+
+profile:
+  required_fields:
+    - ranges
+
+matcher:
+  type: ast_grep
+  config:
+    language: s3boot
+    rule:
+      pattern: call $ENTRY($CTX)
+
+condition:
+  language: simpleeval
+  expression: >-
+    any([region["name"] in ("ACPI Non-volatile Storage", "ACPI NVS") and
+         region["start"] <= CTX <= region["end"]
+         for region in profile["ranges"]])
