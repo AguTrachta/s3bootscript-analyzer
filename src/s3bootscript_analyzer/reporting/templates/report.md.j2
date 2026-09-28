@@ -44,7 +44,7 @@ Captures:
 {% for name, value in evidence.bindings.items() %}
 - {{ name | markdown_text }}:
 
-{{ value | code_block }}
+{{ (("0x%x" | format(value)) if value is integer else value) | code_block }}
 {% endfor %}
 
 {% endfor %}
