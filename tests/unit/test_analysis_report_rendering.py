@@ -239,6 +239,21 @@ def test_markdown_capture_value_is_literal_code(rule: RuleDefinition) -> None:
     assert "<code>" not in output
 
 
+def test_markdown_integer_capture_is_rendered_in_hexadecimal(rule: RuleDefinition) -> None:
+    report = _report(
+        RuleEvaluation(
+            rule,
+            EvaluationOutcome.MATCHED,
+            evidence=(MatchEvidence({"CTX": 0x800000}, "call 0x1000(0x800000)", 1, 0, 13),),
+        )
+    )
+
+    output = build_report_renderer("markdown").render(report)
+
+    assert "CTX:" in output
+    assert "```\n0x800000\n```" in output
+
+
 def test_unsupported_report_format_is_an_expected_application_error() -> None:
     with pytest.raises(BootScriptAnalyzerError, match="Unsupported report format"):
         build_report_renderer("xml")
