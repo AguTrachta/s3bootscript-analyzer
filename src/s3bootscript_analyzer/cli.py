@@ -20,6 +20,7 @@ from s3bootscript_analyzer.cli_analysis import (
 )
 from s3bootscript_analyzer.errors import BootScriptAnalyzerError
 from s3bootscript_analyzer.profile_data import (
+    FacsProfileLoader,
     GenerateProfile,
     JsonProfileWriter,
     KernelProfileLoader,
@@ -27,6 +28,7 @@ from s3bootscript_analyzer.profile_data import (
     ProfileLoader,
 )
 from s3bootscript_analyzer.profile_data.commands import SubprocessRunner
+from s3bootscript_analyzer.profile_data.facs import DEFAULT_FACS_PATH, DEFAULT_FADT_PATH
 from s3bootscript_analyzer.reporting import (
     BootScriptRenderer,
     JsonIrRenderer,
@@ -54,6 +56,7 @@ class ProfileGenerationSource(StrEnum):
 
     PROC_IOMEM = "proc-iomem"
     PROC_IOMEM_KERNEL = "kernel"
+    FACS = "facs"
 
 
 def build_parser() -> argparse.ArgumentParser:
@@ -152,10 +155,26 @@ def _run(args: argparse.Namespace) -> int:
     )
 
 
-def _generate_profile(source: ProfileGenerationSource, profile_output: Path | None) -> int:
+def _generate_profile(
+    source: ProfileGenerationSource,
+    profile_output: Path | None,
+) -> int:
+    if source == ProfileGenerationSource.FACS:
+        return _generate_facs_profile(profile_output)
     if source == ProfileGenerationSource.PROC_IOMEM:
         return _generate_proc_iomem_profile(profile_output)
     return _generate_kernel_iomem_profile(profile_output)
+
+
+def _generate_facs_profile(profile_output: Path | None) -> int:
+    loader = FacsProfileLoader(DEFAULT_FADT_PATH, DEFAULT_FACS_PATH)
+    try:
+        _write_generated_profile(loader, JsonProfileWriter(), profile_output)
+    except BootScriptAnalyzerError as ex:
+        _log_analyzer_error(ex)
+        print(f"Error: {ex}")
+        return EXIT_FAILURE
+    return EXIT_SUCCESS
 
 
 def _generate_proc_iomem_profile(
