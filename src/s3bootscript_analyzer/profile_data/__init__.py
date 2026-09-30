@@ -6,6 +6,7 @@ from s3bootscript_analyzer.profile_data.contracts import (
     ProfileLoader,
     ProfileWriter,
 )
+from s3bootscript_analyzer.profile_data.facs import FacsProfileLoader
 from s3bootscript_analyzer.profile_data.generator import GenerateProfile
 from s3bootscript_analyzer.profile_data.json_loader import JsonProfileLoader, ProfileLoadError
 from s3bootscript_analyzer.profile_data.kernel_iomem import (
@@ -23,6 +24,7 @@ from s3bootscript_analyzer.profile_data.writers import JsonProfileWriter
 
 __all__ = [
     "DEFAULT_SCHEMA_VERSION",
+    "FacsProfileLoader",
     "GenerateProfile",
     "JsonProfileWriter",
     "JsonProfileLoader",

@@ -1,0 +1,34 @@
+{
+  "source": "acpi_facs",
+  "ranges": [],
+  "diagnostics": [],
+  "schema_version": 1,
+  "facs": {
+    "physical_address": 998023168,
+    "length": 64,
+    "signature": "FACS",
+    "pointer_source": "FIRMWARE_CTRL",
+    "fadt_pointers": {
+      "firmware_ctrl": 998023168,
+      "x_firmware_ctrl": 0
+    },
+    "legacy_waking_vector": {
+      "start": 998023180,
+      "end": 998023183
+    },
+    "extended_waking_vector": {
+      "start": 998023192,
+      "end": 998023199
+    },
+    "metadata": {
+      "hardware_signature": 0,
+      "flags": 0,
+      "version": 0
+    },
+    "collection_complete": true,
+    "provenance": {
+      "fadt_source": "/sys/firmware/acpi/tables/FACP",
+      "facs_source": "/sys/firmware/acpi/tables/FACS"
+    }
+  }
+}

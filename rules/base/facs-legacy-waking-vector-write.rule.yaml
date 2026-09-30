@@ -1,0 +1,27 @@
+schema_version: 1
+plugin: s3bootscript
+metadata:
+  id: S3-FACS-LEGACY-WAKING-VECTOR-WRITE-001
+  title: MEM_WRITE replaces the FACS legacy waking vector
+  description: >-
+    A 32-bit MEM_WRITE with at least one element starts at the FACS legacy waking-vector field
+    identified by the selected platform profile. This can redirect S3 wake
+    control flow; the static match does not prove that the written target ran.
+  severity: critical
+  enabled: true
+profile:
+  required_fields:
+    - facs
+matcher:
+  type: ast_grep
+  config:
+    language: s3boot
+    rule:
+      pattern: mem[$ADDR] <- $VALUE
+condition:
+  language: simpleeval
+  expression: >-
+    record["opcode"] == "MEM_WRITE" and
+    record["fields"]["width"] == 2 and
+    record["fields"]["count"] >= 1 and
+    ADDR == profile["facs"]["legacy_waking_vector"]["start"]
