@@ -7,8 +7,8 @@ nix develop -c scripts/quality-gate
 ```
 
 This guide establishes the shared foundation for [#38](https://github.com/AguTrachta/s3bootscript-analyzer/issues/38).
-It does not claim that the downstream acceptance expansion, properties, coverage
-reports, or mutation pilot have been implemented.
+Process acceptance is expanded by [#39](https://github.com/AguTrachta/s3bootscript-analyzer/issues/39).
+Properties, coverage reports, and the mutation pilot remain separate work.
 
 ## Choose the smallest useful boundary
 
@@ -31,43 +31,46 @@ do not manufacture failing tests for third-party tools.
 | Focused behavioral test | A public responsibility, with isolated external collaborators where useful | `tests/unit/` |
 | Injected CLI integration | In-process `main()` behavior with selected collaborators replaced | `tests/integration/test_cli_analysis.py` replaces the renderer |
 | Composed integration | Real parsing/matching/rendering, still calling `main()` in process | `tests/integration/test_report_cli.py`, `test_real_sample.py` |
-| Development-install subprocess | Real console process with production collaborators in the development environment | `tests/acceptance/test_cli_e2e.py` |
-| Packaged-artifact acceptance | Explicit built executable and declared runtime resources, without checkout fallbacks | Not established by the current subprocess tests; follow-up #39 |
+| Development-install subprocess | Real console process with production collaborators in the development environment | Default `tests/acceptance/test_cli_e2e.py` mode |
+| Packaged-artifact diagnostic | Explicit built executable without checkout or ambient-tool fallbacks; failures remain visible | The same stories in artifact mode; not a claim of successful package acceptance |
 
 Directory names alone do not establish a boundary. CI currently uses an editable
-Nix development environment; a command resolved from PATH is not proof of an
-isolated package installation. Record the executable path and installation mode.
+Nix development environment. Development mode selects the current Python
+environment's console executable explicitly; it is still not proof of an isolated
+package installation. JUnit suite properties record the resolved executable and
+installation mode.
 
 ## Current CLI contract matrix
 
-This inventory describes the source at foundation revision `0566bf9`. Test names
-below identify existing protection, not an assertion that every stream/file effect
-is checked. Reconcile this table when behavior or tests change.
+This inventory extends the foundation at `45d2269` with the process stories below.
+Test names identify current protection at the stated boundary; artifact-mode
+results must be reported separately. Reconcile this table when behavior changes.
 
 Paths in the test column are relative to `tests/`. `I` means
 `integration/test_cli_analysis.py`, `R` means `integration/test_report_cli.py`,
 `U` means `unit/test_cli.py`, and `A` means `acceptance/test_cli_e2e.py`.
 
-| Command / scenario | Exit | Output contract | Existing test ID | Gap / follow-up |
+| Command / scenario | Exit | Output contract | Current protection | Remaining gap |
 | --- | --- | --- | --- | --- |
-| Root help / missing command | 0 / 2 | Help on stdout; argument errors on stderr; no report | U: `test_main_help_lists_all_operations`, `test_main_requires_a_command` | Subcommand process help/validation: #39 |
-| Analyze: findings, stdout | 3 | Markdown default or HTML report on stdout | A: `test_installed_command_prints_profile_filtered_report`; R: `test_real_binary_report_contains_only_profile_accepted_evidence` | A does not assert stderr: #39 |
-| Analyze: findings, file | 3 | Report file; stdout empty | A: `test_installed_command_writes_profile_filtered_report_to_file` | A does not assert stderr: #39 |
-| Analyze: no match | 0 | Requested report, not a safety verdict | I: `test_no_matching_writes_returns_success`; R: `test_no_match_is_reported_with_the_rules_declared_warning_severity` | No subprocess story: #39 |
-| Analyze: missing required profile facts | 0 | Report includes unknown, not invented facts | I: `test_omitted_profile_is_empty_and_missing_declared_facts_remain_unknown`; R: `test_missing_profile_facts_are_reported_as_unknown_with_a_reason` | No subprocess story: #39 |
-| Analyze: disabled rule | 0 | Report includes skipped | R: `test_disabled_rule_remains_visible_as_skipped` | In-process protection; retain |
-| Analyze: unreadable input / invalid selected profile | 1 | Operational diagnostic on stderr; setup can prevent report creation | I: `test_unreadable_input_reports_the_path_on_stderr`, `test_invalid_selected_profile_is_an_error_without_default_fallback` | No subprocess story: #39 |
-| Analyze: invalid arguments | 2 | Usage diagnostic on stderr; no analysis | I: `test_invalid_invocation_reports_the_specific_usage_error` | No subprocess story: #39 |
-| Analyze: output failure, even with finding | 1 | Output diagnostic on stderr; do not assume atomic writes | I: `test_output_failure_takes_precedence_over_a_match` | Injected renderer; process failure case: #39 |
-| Analyze: rule error alongside finding | 1 | Report preserves finding; error diagnostics remain visible | R: `test_invalid_rule_diagnostic_and_valid_finding_share_the_report`; I: `test_condition_error_preserves_later_finding_and_returns_failure` | Process error precedence: #39 |
-| Analyze: debug / quiet | Result-dependent; conflict 2 | Debug to stderr; report and errors retained under quiet | I: `test_debug_keeps_diagnostics_on_stderr_and_report_on_stdout`, `test_quiet_retains_requested_report_without_informational_output`, `test_quiet_retains_operational_errors` | Do not redefine quiet as silence |
-| Disassemble: text / JSON / semantic | 0 | Selected format on stdout; default text | `integration/test_real_sample.py`: `test_cli_text_output_for_real_sample`, `test_cli_json_output_for_real_sample`, `test_cli_semantic_output_matches_stable_golden` | No subprocess story: #39 |
-| Disassemble: file output | 0 | Selected output file instead of stdout | U: `test_main_writes_output_to_file` | Injected disassembler; no subprocess story: #39 |
-| Disassemble: handled failure / invalid format | 1 / 2 | Handled error on stdout; argument errors on stderr; debug on stderr | U: `test_main_reports_missing_input`, `test_main_rejects_invalid_output_format`, `test_main_accepts_debug_and_writes_diagnostics_to_stderr` | No subprocess story: #39 |
-| Generate-profile: proc-iomem / kernel success | 0 | JSON on stdout or profile-output file | U: `test_main_generates_proc_iomem_profile_to_stdout`, `test_main_generates_proc_iomem_profile_to_file`, `test_main_generates_kernel_iomem_profile_to_stdout`, `test_main_generates_kernel_iomem_profile_to_file` | Injected source; not real host acceptance |
-| Generate-profile: handled proc-iomem / kernel failure | 1 | Handled source/output diagnostic on stdout | `unit/test_profile_data.py`: `test_subprocess_runner_rejects_unexpected_return_code` protects runner rejection, not CLI exit/streams | CLI failure routing remains a gap: #39 |
-| Generate-profile: facs success / missing tables | 0 / 1 | JSON on stdout or profile-output file; handled errors on stdout | `unit/test_facs_profile.py`: `test_facs_cli_generates_profile_from_acpi_tables`, `test_facs_cli_reports_missing_table_instead_of_empty_profile` | Fixture paths; facs file route lacks a CLI example; real-host collection stays manual |
-| Generate-profile: invalid arguments | 2 | Usage diagnostic on stderr; no collection | U: `test_main_rejects_missing_commands_and_cross_command_options`; `unit/test_facs_profile.py`: `test_facs_cli_rejects_removed_table_path_options` | Process help/validation: #39 |
+| Root/subcommand help | 0 | Help on stdout; no report/collection | A: `test_help_describes_the_public_command`, `test_profile_help_lists_sources_without_collecting` | Real host collection is separate |
+| Analyze: findings, stdout | 3 | Markdown or HTML report; stderr empty normally | A: `test_installed_command_prints_profile_filtered_report` | No full renderer matrix duplication |
+| Analyze: findings, file | 3 | Report file; stdout/stderr empty normally | A: `test_installed_command_writes_profile_filtered_report_to_file` | Preserve format detail in R |
+| Analyze: no match | 0 | Report identifies not_matched, not a safety verdict | A: `test_no_matching_write_returns_zero_with_a_report` | None for this process story |
+| Analyze: missing required facts | 0 | Report identifies unknown and missing_profile_data | A: `test_missing_required_profile_facts_remain_unknown` | Richer profile shapes belong to #42 |
+| Analyze: disabled rule | 0 | Report identifies skipped | R: `test_disabled_rule_remains_visible_as_skipped` | Retained in-process protection |
+| Analyze: invalid selected profile | 1 | Error on stderr; no completed report | A: `test_invalid_selected_profile_fails_without_a_report` | None for this process story |
+| Analyze: unreadable input, normal/quiet | 1 | Error on stderr; no completed report | A: `test_unreadable_analysis_input_retains_stderr_errors` | None for this process story |
+| Analyze: invalid invocation / debug-quiet conflict | 2 | Usage on stderr; no analysis/report | A: `test_invalid_invocation_fails_without_running_the_command`, `test_debug_and_quiet_conflict_before_creating_a_report` | None for these process cases |
+| Analyze: output failure with finding | 1 | Output error on stderr; parent file preserved | A: `test_output_failure_takes_precedence_over_a_finding` | No new atomic-write guarantee |
+| Analyze: error then finding | 1 | Report retains finding; errors visible on stderr | A: `test_evaluation_error_preserves_a_later_finding_but_returns_failure` | None for this process story |
+| Analyze: debug / quiet success | 3 | Debug on stderr; quiet retains report | A: `test_debug_keeps_diagnostics_separate_from_the_report`, `test_quiet_keeps_the_report_without_informational_output` | Do not redefine quiet as silence |
+| Disassemble: text / JSON / semantic | 0 | Selected format on stdout; default text | A: `test_disassemble_prints_text_by_default`, `test_disassemble_prints_structured_json`, `test_disassemble_prints_semantic_operations` | Real-sample breadth remains in `integration/test_real_sample.py` |
+| Disassemble: file output | 0 | Requested file; stdout/stderr empty normally | A: `test_disassemble_writes_the_requested_file` | None for this process story |
+| Disassemble: handled failure / invalid format | 1 / 2 | Handled errors on stdout; usage on stderr | A: `test_disassemble_handled_failure_stays_on_stdout`, `test_invalid_invocation_fails_without_running_the_command` | Debug behavior retained in U |
+| Generate-profile: proc-iomem / kernel success | 0 | JSON on stdout or selected file | U: `test_main_generates_proc_iomem_profile_to_stdout`, `test_main_generates_proc_iomem_profile_to_file`, `test_main_generates_kernel_iomem_profile_to_stdout`, `test_main_generates_kernel_iomem_profile_to_file` | Injected source; not host acceptance |
+| Generate-profile: handled proc-iomem / kernel failure | 1 | Handled source/output error on stdout | `unit/test_profile_data.py`: `test_subprocess_runner_rejects_unexpected_return_code` protects runner rejection | CLI failure routing remains an integration gap |
+| Generate-profile: facs success / missing tables | 0 / 1 | JSON on stdout or selected file; handled errors on stdout | `unit/test_facs_profile.py`: `test_facs_cli_generates_profile_from_acpi_tables`, `test_facs_cli_reports_missing_table_instead_of_empty_profile` | Fixture paths; facs file-route example absent; host collection stays manual |
+| Generate-profile: missing/invalid source | 2 | Usage on stderr; no collection | A: `test_invalid_invocation_fails_without_running_the_command` | No successful host collection claimed |
 
 Handled failures are not a promise that every possible exception is caught.
 Successful reports normally use stdout unless a file is selected; diagnostics
@@ -87,6 +90,68 @@ Kaitai-generated Python, ast-grep, and the compiled Tree-sitter grammar are
 prerequisites, not handwritten test targets. Nix prepares them for the existing
 gate. Some tests can skip missing native dependencies: report those skips and
 their reasons; they are missing proof, not successful verification.
+
+## Run process acceptance
+
+The default development mode uses real parsing, matching, evaluation and
+rendering. It preserves the native-tool PATH and editable installation root only
+for that mode. Every child has an isolated cwd/HOME/TMPDIR, closed stdin and a
+30-second timeout. Other ambient environment variables, including credentials and
+Python import overrides, are not forwarded.
+
+```bash
+nix develop -c pytest tests/acceptance -q
+```
+
+Fixtures are synthetic: a 56-byte table with MEM_WRITE records at offsets 13 and
+33, followed by TERMINATE at 53; a profile selects only the first destination.
+The curated kernel-write rule is copied into each test directory. The deliberately
+broken rule reads an absent generic JSON fact. No fixture is collected from the
+host, and no source is decoded with a second implementation to derive expectations.
+
+### Packaged diagnostics
+
+Build and select a non-editable executable explicitly, keeping all evidence and
+pytest scratch outside the worktree:
+
+```bash
+evidence="$(mktemp -d)"
+nix build --no-write-lock-file .#default --no-link --print-out-paths \
+  > "$evidence/package-path.txt" 2> "$evidence/build.log"
+S3_ACCEPTANCE_MODE=artifact \
+S3_ANALYZER_EXECUTABLE="$(cat "$evidence/package-path.txt")/bin/s3bootscript-analyzer" \
+  nix develop --no-write-lock-file -c pytest tests/acceptance -q \
+    -o "cache_dir=$evidence/cache" --basetemp "$evidence/tmp" \
+    --junitxml "$evidence/results.xml"
+```
+
+`S3_ACCEPTANCE_MODE` accepts only `development` (default) or `artifact`.
+`S3_ANALYZER_EXECUTABLE` optionally overrides the development console path and is
+required in artifact mode. Invalid selection fails setup; it never becomes a skip.
+
+Artifact children receive only isolated home/temp settings, a fixed locale,
+bytecode suppression and an empty tool directory on PATH. They receive no
+REPO_ROOT, PYTHONPATH, PYTHONHOME or development native tools. The test driver may
+run under Nix develop; that does not give its environment to the artifact child.
+Binary/profile/rule files are explicit CLI inputs, not runtime-resource fallbacks.
+JUnit suite properties record the resolved executable/mode, and test cases include
+durations, failures and captured diagnostics.
+
+The **Packaged CLI Diagnostics** workflow is manual (`workflow_dispatch`) and has
+a 15-minute job budget. It records revision, dirty state, lockfile identity,
+platform, driver versions, package path, build log and JUnit/test output, uploading
+evidence even after build/test failure with seven-day retention. It is available
+after the workflow reaches the default branch and does not replace either
+existing PR gate. Failures stay failures: no blanket xfail, skip, or swallowed exit
+status. Packaging defects discovered here are separate follow-up work; development
+success must not be reported as packaged acceptance.
+
+At the first local isolated probe against the package built from the `45d2269`
+production baseline, 20 cases passed and seven analysis cases failed because the
+artifact could not locate `ast-grep`. Development mode passed all 27 cases. This
+is an observed packaging limitation, not a passing artifact acceptance result or
+a reason to weaken those assertions. Packaging/runtime-resource repair is out of
+scope here; rerun the diagnostic after that separate work.
 
 ## Shared development tools
 

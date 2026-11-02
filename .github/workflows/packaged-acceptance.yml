@@ -1,0 +1,73 @@
+name: Packaged CLI Diagnostics
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  packaged-acceptance:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    env:
+      EVIDENCE_DIR: ${{ runner.temp }}/packaged-cli-evidence
+
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+
+      - name: Prepare evidence directory
+        run: mkdir -p "$EVIDENCE_DIR"
+
+      - name: Install Nix
+        uses: cachix/install-nix-action@v31
+        with:
+          extra_nix_config: |
+            experimental-features = nix-command flakes
+
+      - name: Record revision and environment
+        run: |
+          {
+            git rev-parse HEAD
+            git status --porcelain
+            uname -sm
+            nix --version
+            sha256sum uv.lock
+          } > "$EVIDENCE_DIR/manifest.txt"
+
+      - name: Build packaged executable
+        shell: bash
+        run: |
+          set -o pipefail
+          nix build --no-write-lock-file .#default --no-link --print-out-paths \
+            2> >(tee "$EVIDENCE_DIR/build.log" >&2) \
+            | tee "$EVIDENCE_DIR/package-path.txt"
+
+      - name: Run isolated artifact diagnostics
+        shell: bash
+        env:
+          S3_ACCEPTANCE_MODE: artifact
+        run: |
+          set -o pipefail
+          S3_ANALYZER_EXECUTABLE="$(cat "$EVIDENCE_DIR/package-path.txt")/bin/s3bootscript-analyzer"
+          export S3_ANALYZER_EXECUTABLE
+          nix develop --no-write-lock-file -c bash -c \
+            'set -e; python --version; pytest --version; ast-grep --version' \
+            >> "$EVIDENCE_DIR/manifest.txt" 2>&1
+          nix develop --no-write-lock-file -c pytest tests/acceptance -q \
+            -o "cache_dir=$RUNNER_TEMP/packaged-cli-cache" \
+            --basetemp "$RUNNER_TEMP/packaged-cli-tmp" \
+            --junitxml "$EVIDENCE_DIR/results.xml" \
+            2>&1 | tee "$EVIDENCE_DIR/tests.log"
+
+      - name: Upload diagnostic evidence, including failures
+        if: always()
+        uses: actions/upload-artifact@v7
+        with:
+          name: packaged-cli-diagnostics
+          path: ${{ env.EVIDENCE_DIR }}
+          if-no-files-found: error
+          retention-days: 7
