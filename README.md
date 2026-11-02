@@ -9,7 +9,7 @@ The CLI also supports disassembly and Linux profile generation.
 
 - Python 3.12
 - Nix with flakes enabled for the reproducible development environment
-- GNU/Linux for profile generation from `/proc/iomem`
+- GNU/Linux for host profile collection
 
 Before first use, install `git-lfs` and pull the sample binaries:
 
@@ -126,6 +126,10 @@ Use `--verbose` to include opcode metadata in text output, and `--debug` for
 diagnostic logging to standard error. Supported output formats are `text`,
 `json`, and `semantic`.
 
+Exit codes are `0` for success, `1` for handled operational failures, and `2`
+for invalid arguments. Handled operational errors currently go to standard
+output; usage errors and debug diagnostics go to standard error.
+
 ## Generate a profile
 
 Generate selected memory ranges from Linux `/proc/iomem`:
@@ -144,10 +148,22 @@ nix develop -c s3bootscript-analyzer generate-profile \
   --profile-output /tmp/kernel.json
 ```
 
-The source readers invoke `sudo` to read `/proc/iomem`. Without
-`--profile-output`, the generated JSON is printed to standard output.
+Collect ACPI table metadata and waking-vector field locations:
 
-Generated profiles contain `source`, `ranges`, `diagnostics`, and
+```bash
+nix develop -c s3bootscript-analyzer generate-profile \
+  --source facs \
+  --profile-output /tmp/facs.json
+```
+
+The `proc-iomem` and `kernel` readers invoke `sudo` to read `/proc/iomem`.
+The `facs` reader uses the host's ACPI tables and may require `sudo` when direct
+access is denied. Without `--profile-output`, generated JSON goes to standard
+output. Exit codes are `0` for success, `1` for handled collection/output
+failures, and `2` for invalid arguments. Handled errors currently go to standard
+output; usage errors and debug diagnostics go to standard error.
+
+The `proc-iomem` and `kernel` profiles contain `source`, `ranges`, `diagnostics`, and
 `schema_version`. Each range includes its name, inclusive numeric boundaries,
 and original source label. The kernel generator uses names such as
 `KERNEL_CODE_RANGE` and `KERNEL_DATA_RANGE`.
@@ -221,6 +237,9 @@ nix develop -c scripts/repository-content-check
 The checks cover parser regeneration, linting, formatting, strict typing,
 security checks, cyclomatic complexity, tests, rule schemas, profile examples,
 and repository content.
+
+See the [testing guide](docs/testing.md) for test boundaries, current CLI
+protection and gaps, development-tool profiles, and evidence requirements.
 
 ## License
 
