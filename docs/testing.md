@@ -6,9 +6,9 @@ Run the existing checks from the supported Python 3.12 environment:
 nix develop -c scripts/quality-gate
 ```
 
-This guide establishes the shared foundation for [#38](https://github.com/AguTrachta/s3bootscript-analyzer/issues/38).
-Process acceptance is expanded by [#39](https://github.com/AguTrachta/s3bootscript-analyzer/issues/39).
-Properties, coverage reports, and the mutation pilot remain separate work.
+This guide explains test boundaries, CLI behavior, development tools, and how to
+record reproducible evidence. Choose checks that protect meaningful behavior
+without duplicating coverage across every layer.
 
 ## Choose the smallest useful boundary
 
@@ -32,7 +32,7 @@ do not manufacture failing tests for third-party tools.
 | Injected CLI integration | In-process `main()` behavior with selected collaborators replaced | `tests/integration/test_cli_analysis.py` replaces the renderer |
 | Composed integration | Real parsing/matching/rendering, still calling `main()` in process | `tests/integration/test_report_cli.py`, `test_real_sample.py` |
 | Development-install subprocess | Real console process with production collaborators in the development environment | Default `tests/acceptance/test_cli_e2e.py` mode |
-| Packaged-artifact diagnostic | Explicit built executable without checkout or ambient-tool fallbacks; failures remain visible | The same stories in artifact mode; not a claim of successful package acceptance |
+| Packaged-artifact acceptance | An installed executable with its runtime resources, without checkout or ambient-tool fallbacks | The same CLI scenarios in artifact mode |
 
 Directory names alone do not establish a boundary. CI currently uses an editable
 Nix development environment. Development mode selects the current Python
@@ -42,9 +42,9 @@ installation mode.
 
 ## Current CLI contract matrix
 
-This inventory extends the foundation at `45d2269` with the process stories below.
-Test names identify current protection at the stated boundary; artifact-mode
-results must be reported separately. Reconcile this table when behavior changes.
+The table maps observable CLI behavior to tests at each boundary. Report
+development and packaged-artifact results separately, and update the mapping
+when behavior changes.
 
 Paths in the test column are relative to `tests/`. `I` means
 `integration/test_cli_analysis.py`, `R` means `integration/test_report_cli.py`,
@@ -56,7 +56,7 @@ Paths in the test column are relative to `tests/`. `I` means
 | Analyze: findings, stdout | 3 | Markdown or HTML report; stderr empty normally | A: `test_installed_command_prints_profile_filtered_report` | No full renderer matrix duplication |
 | Analyze: findings, file | 3 | Report file; stdout/stderr empty normally | A: `test_installed_command_writes_profile_filtered_report_to_file` | Preserve format detail in R |
 | Analyze: no match | 0 | Report identifies not_matched, not a safety verdict | A: `test_no_matching_write_returns_zero_with_a_report` | None for this process story |
-| Analyze: missing required facts | 0 | Report identifies unknown and missing_profile_data | A: `test_missing_required_profile_facts_remain_unknown` | Richer profile shapes belong to #42 |
+| Analyze: missing required facts | 0 | Report identifies unknown and missing_profile_data | A: `test_missing_required_profile_facts_remain_unknown` | Nested profile shapes need separate property coverage |
 | Analyze: disabled rule | 0 | Report identifies skipped | R: `test_disabled_rule_remains_visible_as_skipped` | Retained in-process protection |
 | Analyze: invalid selected profile | 1 | Error on stderr; no completed report | A: `test_invalid_selected_profile_fails_without_a_report` | None for this process story |
 | Analyze: unreadable input, normal/quiet | 1 | Error on stderr; no completed report | A: `test_unreadable_analysis_input_retains_stderr_errors` | None for this process story |
@@ -103,11 +103,10 @@ Python import overrides, are not forwarded.
 nix develop -c pytest tests/acceptance -q
 ```
 
-Fixtures are synthetic: a 56-byte table with MEM_WRITE records at offsets 13 and
-33, followed by TERMINATE at 53; a profile selects only the first destination.
-The curated kernel-write rule is copied into each test directory. The deliberately
-broken rule reads an absent generic JSON fact. No fixture is collected from the
-host, and no source is decoded with a second implementation to derive expectations.
+Fixtures use small synthetic boot scripts, JSON profiles, and declarative rules.
+They cover findings, absent matches, missing facts, and rule failures without
+collecting host data. Expected outcomes come from the fixture's declared behavior,
+not a second execution of the implementation under test.
 
 ### Packaged diagnostics
 
@@ -137,31 +136,28 @@ Binary/profile/rule files are explicit CLI inputs, not runtime-resource fallback
 JUnit suite properties record the resolved executable/mode, and test cases include
 durations, failures and captured diagnostics.
 
-The **Packaged CLI Diagnostics** workflow is manual (`workflow_dispatch`) and has
-a 15-minute job budget. It records revision, dirty state, lockfile identity,
-platform, driver versions, package path, build log and JUnit/test output, uploading
-evidence even after build/test failure with seven-day retention. It is available
-after the workflow reaches the default branch and does not replace either
-existing PR gate. Failures stay failures: no blanket xfail, skip, or swallowed exit
-status. Packaging defects discovered here are separate follow-up work; development
-success must not be reported as packaged acceptance.
+The **Packaged CLI Diagnostics** workflow runs manually through
+`workflow_dispatch` and uploads build logs, environment details, and JUnit/test
+output, including on failure. It complements the regular PR checks.
 
-At the first local isolated probe against the package built from the `45d2269`
-production baseline, 20 cases passed and seven analysis cases failed because the
-artifact could not locate `ast-grep`. Development mode passed all 27 cases. This
-is an observed packaging limitation, not a passing artifact acceptance result or
-a reason to weaken those assertions. Packaging/runtime-resource repair is out of
-scope here; rerun the diagnostic after that separate work.
+Packaged tests must verify that the selected executable can find its own runtime
+tools and resources without checkout fallbacks. A successful build or development
+test run alone does not establish that. Preserve failures as failures rather than
+hiding them with blanket skips, xfails, or swallowed exit statuses.
+
+Record results for the selected artifact and environment in run evidence or a PR,
+not in this guide. Testing one distribution does not verify another: an isolated
+Nix package run is not evidence for an independently built wheel.
 
 ## Shared development tools
 
-Tools are development-only and versions resolve through `uv.lock`. Outside Nix,
+Test and measurement tools use versions resolved through `uv.lock`. Outside Nix,
 `uv sync --frozen` selects the default dev group; `uv sync --frozen --group mutation`
 also selects the mutation tool. These commands do not prepare the native grammar
 or Kaitai compiler; use the supported Nix environment for full checks.
 
-Nix currently uses `workspace.deps.all`, so it installs the mutation group too.
-The group makes uv selection explicit; it does not isolate installation in Nix.
+The Nix development shell includes the testing tools, including mutmut. Dependency
+group selection controls installation outside Nix, not which checks run.
 Ordinary pytest does not start coverage collection or mutation testing.
 
 ### Coverage configuration, not a quality score
@@ -180,8 +176,8 @@ instrumentation, and an uninstrumented Nix package must be reported separately.
 
 Python coverage does not measure native components or template execution. Their
 observable behavior needs contract/rendering tests, not invented percentages.
-Collection automation, child-instrumentation proof, subsystem reports and CI
-artifacts belong to [#40](https://github.com/AguTrachta/s3bootscript-analyzer/issues/40).
+Separate line and branch reports by subsystem, state instrumentation limits, and
+verify child-process collection before claiming subprocess coverage.
 See [coverage configuration](https://coverage.readthedocs.io/en/latest/config.html).
 
 ### Hypothesis profiles
@@ -202,29 +198,28 @@ nix develop -c pytest --collect-only --hypothesis-profile=ci
 nix develop -c pytest --collect-only --hypothesis-profile=exploratory
 ```
 
-These commands check collection/profile availability; they do not exercise any
-new properties. Property implementations belong to #41 and #42. Their future
-tests use the registered `property` marker, public APIs, and independent oracles.
+Use `--collect-only` to check profile selection without running tests. Mark
+property tests with the registered `property` marker, exercise public APIs, and
+derive expected results independently of the implementation.
 Record Python/Hypothesis versions and replay output. Seeds/blobs are
 version-dependent; preserve minimized failures as readable `@example` cases or
 fixtures. See [Hypothesis replay guidance](https://hypothesis.readthedocs.io/en/latest/tutorial/replaying-failures.html).
 
-### Mutation pilot configuration only
+### Mutation testing
 
-The pinned mutmut pilot targets only handwritten `analysis/profile.py` and
-`analysis/engine.py`, with their existing public contract tests. Copy both `tests/`
-and `profiles/`: the profile contract tests discover JSON fixtures recursively,
-so omitting profiles would silently skip those cases. The setup uses
-`source_paths` and an exact `only_mutate` allowlist, retaining
-default stack-depth behavior. No generated or native code is a mutation target.
+Use mutmut for bounded checks of handwritten behavioral decisions, with focused
+tests of their public contracts. Keep generated, third-party, and native code out
+of the target allowlist, and keep mutation runs separate from ordinary pytest.
 
-Run the eventual pilot only in a disposable copy outside the workspace; never
-use `mutmut apply` in the working repository. Two workers and a 15-minute overall
-budget are the starting limits, not claimed runtime results. A passing selected
-baseline is required first. Separate killed, surviving, manually justified
-equivalent, invalid, timed-out, and untested/unrun outcomes; timeouts and
-infrastructure failures are not assertion kills. Do not chase a mutation score.
-Execution and cost/value review belong to [#43](https://github.com/AguTrachta/s3bootscript-analyzer/issues/43).
+Run mutation testing only in a disposable copy outside the workspace; never use
+`mutmut apply` in the working repository. Include both `tests/` and `profiles/`:
+profile contract tests discover JSON fixtures recursively, so omitting the profile
+tree can silently omit cases. Require a passing selected baseline, and set worker
+and runtime limits before launching an expensive run.
+
+Separate killed, surviving, manually justified equivalent, invalid, timed-out,
+and untested/unrun outcomes. Timeouts and infrastructure failures are not assertion
+kills. Review survivors for meaningful gaps rather than chasing a mutation score.
 See [mutmut configuration](https://mutmut.readthedocs.io/en/latest/).
 
 ## Record evidence without inventing results

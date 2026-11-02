@@ -47,6 +47,19 @@
         root = "$REPO_ROOT";
       };
 
+      semanticGrammars = forAllSystems (
+        system:
+        let
+          pkgs = nixpkgs.legacyPackages.${system};
+        in
+        pkgs.runCommand "s3boot-semantic-grammar" { nativeBuildInputs = [ pkgs.stdenv.cc ]; } ''
+          mkdir -p "$out"
+          cc -shared -fPIC -I ${./tools/semantic_ir/src} \
+            ${./tools/semantic_ir/src}/parser.c -o "$out/parser.so"
+          cp ${./tools/semantic_ir/sgconfig.yml} "$out/sgconfig.yml"
+        ''
+      );
+
       pythonSets = forAllSystems (
         system:
         let
@@ -58,6 +71,14 @@
               nativeBuildInputs = (old.nativeBuildInputs or [ ]) ++ [
                 pkgs.kaitai-struct-compiler
               ];
+
+              # Bind installed resources without adding a runtime configuration API.
+              postPatch = (old.postPatch or "") + ''
+                substituteInPlace src/s3bootscript_analyzer/cli_analysis.py \
+                  --replace-fail \
+                  'GRAMMAR_CONFIG = Path(__file__).resolve().parents[2] / "tools" / "semantic_ir" / "sgconfig.yml"' \
+                  'GRAMMAR_CONFIG = Path("${semanticGrammars.${system}}/sgconfig.yml")'
+              '';
 
               preBuild = ''
                 ${pkgs.bash}/bin/bash scripts/generate-kaitai
@@ -77,9 +98,24 @@
       );
     in
     {
-      packages = forAllSystems (system: {
-        default = pythonSets.${system}.mkVirtualEnv "s3bootscript-analyzer-env" workspace.deps.default;
-      });
+      packages = forAllSystems (
+        system:
+        let
+          pkgs = nixpkgs.legacyPackages.${system};
+          virtualenv = pythonSets.${system}.mkVirtualEnv "s3bootscript-analyzer-env" workspace.deps.default;
+        in
+        {
+          default = pkgs.symlinkJoin {
+            name = "s3bootscript-analyzer";
+            paths = [ virtualenv ];
+            nativeBuildInputs = [ pkgs.makeWrapper ];
+            postBuild = ''
+              wrapProgram "$out/bin/s3bootscript-analyzer" \
+                --prefix PATH : ${lib.makeBinPath [ pkgs.ast-grep ]}
+            '';
+          };
+        }
+      );
 
       apps = forAllSystems (system: {
         default = {

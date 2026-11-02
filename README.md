@@ -28,6 +28,17 @@ nix develop
 `generate-profile --source proc-iomem` and `generate-profile --source kernel`
 prompt for your `sudo` password interactively when they run.
 
+### Packaged CLI
+
+Run the built Nix package without entering the development shell:
+
+```bash
+nix run . -- --help
+```
+
+Use the same commands and options shown below, with explicit paths to your
+binary, rules, and profile files.
+
 ## Analyze a binary
 
 Generate a Markdown report using a rule and a JSON profile:
