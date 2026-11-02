@@ -13,10 +13,13 @@ jobs:
   quality-gate:
     runs-on: ubuntu-latest
     timeout-minutes: 15
-    env:
-      COVERAGE_EVIDENCE_DIR: ${{ runner.temp }}/coverage-diagnostics-${{ github.run_id }}-${{ github.run_attempt }}
-
     steps:
+      - name: Initialize coverage evidence path
+        shell: bash
+        run: |
+          evidence_dir="$RUNNER_TEMP/coverage-diagnostics-$GITHUB_RUN_ID-$GITHUB_RUN_ATTEMPT"
+          echo "COVERAGE_EVIDENCE_DIR=$evidence_dir" >> "$GITHUB_ENV"
+
       - name: Check out repository
         uses: actions/checkout@v4
         with:
