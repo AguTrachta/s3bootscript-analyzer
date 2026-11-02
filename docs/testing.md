@@ -148,10 +148,21 @@ success must not be reported as packaged acceptance.
 
 At the first local isolated probe against the package built from the `45d2269`
 production baseline, 20 cases passed and seven analysis cases failed because the
-artifact could not locate `ast-grep`. Development mode passed all 27 cases. This
-is an observed packaging limitation, not a passing artifact acceptance result or
-a reason to weaken those assertions. Packaging/runtime-resource repair is out of
-scope here; rerun the diagnostic after that separate work.
+artifact could not locate `ast-grep`. Development mode passed all 27 cases; that
+was not a passing artifact result.
+
+The Nix package now wraps the console executable with its own `ast-grep` PATH
+entry and builds the semantic grammar/config together in the Nix store. The
+package build binds the CLI's existing config locator to that immutable resource;
+the source/development locator is unchanged. Its fail-fast substitution must be
+updated if the CLI's resource composition changes. No runtime override or new
+CLI flag is needed.
+
+The local repair check (base `c62f8e2` plus these packaging changes, Python
+3.12.13 on x86_64-linux) passed all 27 artifact cases with no failures or skips,
+using the same isolated environment and unchanged assertions. This verifies the
+Nix artifact, not independently built wheels. The GitHub diagnostic workflow has
+not been dispatched for this repair.
 
 ## Shared development tools
 
