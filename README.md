@@ -36,10 +36,8 @@ Run the built Nix package without entering the development shell:
 nix run . -- --help
 ```
 
-The package supplies `ast-grep` and its compiled semantic grammar from the Nix
-store; analysis does not need checkout-relative runtime resources or native tools
-on the caller's PATH. Supply binary, rule, and profile inputs as usual. Host
-profile collection still requires the relevant Linux data sources and permissions.
+Use the same commands and options shown below, with explicit paths to your
+binary, rules, and profile files.
 
 ## Analyze a binary
 
