@@ -12,6 +12,9 @@ on:
 jobs:
   quality-gate:
     runs-on: ubuntu-latest
+    timeout-minutes: 15
+    env:
+      COVERAGE_EVIDENCE_DIR: ${{ runner.temp }}/coverage-diagnostics-${{ github.run_id }}-${{ github.run_attempt }}
 
     steps:
       - name: Check out repository
@@ -27,3 +30,25 @@ jobs:
 
       - name: Run quality gate
         run: nix develop -c scripts/quality-gate
+
+      - name: Collect coverage diagnostics
+        if: always()
+        shell: bash
+        run: |
+          if command -v nix >/dev/null 2>&1; then
+            nix develop -c scripts/coverage-diagnostics --output-dir "$COVERAGE_EVIDENCE_DIR"
+          else
+            mkdir -p "$COVERAGE_EVIDENCE_DIR"
+            echo "Coverage diagnostics unavailable: Nix was not installed successfully." \
+              | tee "$COVERAGE_EVIDENCE_DIR/availability.txt"
+            exit 1
+          fi
+
+      - name: Upload coverage evidence, including failures
+        if: always()
+        uses: actions/upload-artifact@v7
+        with:
+          name: coverage-diagnostics
+          path: ${{ env.COVERAGE_EVIDENCE_DIR }}
+          if-no-files-found: warn
+          retention-days: 7

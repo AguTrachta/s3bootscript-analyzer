@@ -1,0 +1,1 @@
+"""Coverage diagnostic report generation."""
