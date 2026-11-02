@@ -112,19 +112,17 @@ def _phase_environment(config: Path, phase_dir: Path, name: str, child_dir: Path
 
 
 def _phase_command(output: Path, name: str, args: list[str]) -> list[str]:
-    return [
-        "uv",
-        "run",
-        "--locked",
-        "python",
-        "-m",
-        "coverage",
+    return _coverage_command(
         "run",
         "-m",
         "pytest",
         *args,
         f"--junitxml={output / f'{name}.xml'}",
-    ]
+    )
+
+
+def _coverage_command(*arguments: str) -> list[str]:
+    return [sys.executable, "-m", "coverage", *arguments]
 
 
 def _phase_record(
@@ -325,19 +323,13 @@ def _run_tests(output: Path) -> list[dict[str, Any]]:
 
 def _combine(output: Path, config: Path, phases: list[Path], data_name: str) -> dict[str, Any]:
     data_paths = sorted(path for phase in phases for path in phase.glob(".coverage*"))
-    command = [
-        "uv",
-        "run",
-        "--locked",
-        "python",
-        "-m",
-        "coverage",
+    command = _coverage_command(
         "combine",
         "--keep",
         "--rcfile",
         str(config),
         *(str(path) for path in data_paths),
-    ]
+    )
     data_file = output / data_name
     result = subprocess.run(
         command,
@@ -385,17 +377,7 @@ def _prepare_report_target(output: Path, name: str, report_format: str) -> None:
 
 
 def _report_command(config: Path, output: Path, report_format: str, name: str) -> list[str]:
-    command = [
-        "uv",
-        "run",
-        "--locked",
-        "python",
-        "-m",
-        "coverage",
-        report_format,
-        "--rcfile",
-        str(config),
-    ]
+    command = _coverage_command(report_format, "--rcfile", str(config))
     if report_format == "json":
         command.extend(["-o", str(output / name)])
     if report_format == "html":
@@ -446,25 +428,43 @@ def _write_summary(output: Path, prefix: str) -> None:
         (output / summary_name).write_text(json.dumps(summary, indent=2), encoding="utf-8")
 
 
-def run(output_dir: Path) -> int:
-    output = _validate_output(output_dir)
-    (output / "raw").mkdir()
-    records: list[dict[str, Any]] = []
-    prerequisites = subprocess.run(
-        ["uv", "run", "--locked", "python", "-m", "coverage", "--version"],
+def _coverage_prerequisite(output: Path) -> dict[str, Any]:
+    command = _coverage_command("--version")
+    result = subprocess.run(
+        command,
         cwd=ROOT,
         capture_output=True,
         text=True,
         check=False,
     )
+    log = "coverage-prerequisite.log"
+    (output / log).write_text(result.stdout + result.stderr, encoding="utf-8")
+    if result.returncode:
+        print(
+            f"coverage-diagnostics: prerequisite exited {result.returncode}: {' '.join(command)}",
+            file=sys.stderr,
+        )
+        print(result.stderr or result.stdout, file=sys.stderr, end="")
+    return {
+        "command": command,
+        "exit_code": result.returncode,
+        "stdout": result.stdout,
+        "stderr": result.stderr,
+        "log": log,
+    }
+
+
+def run(output_dir: Path) -> int:
+    output = _validate_output(output_dir)
+    (output / "raw").mkdir()
+    prerequisites = _coverage_prerequisite(output)
+    records = [prerequisites]
     prerequisites_info = {
-        "exit_code": prerequisites.returncode,
-        "version": prerequisites.stdout.strip(),
-        "uv": subprocess.run(
-            ["uv", "--version"], capture_output=True, text=True, check=False
-        ).stdout.strip(),
+        "exit_code": prerequisites["exit_code"],
+        "version": prerequisites["stdout"].strip(),
+        "uv": _tool_version("uv", ["--version"])["version"],
         "pytest": subprocess.run(
-            ["uv", "run", "--locked", "pytest", "--version"],
+            [sys.executable, "-m", "pytest", "--version"],
             cwd=ROOT,
             capture_output=True,
             text=True,
@@ -472,7 +472,7 @@ def run(output_dir: Path) -> int:
         ).stdout.strip(),
         "native": _native_versions(),
     }
-    if prerequisites.returncode:
+    if prerequisites["exit_code"]:
         (output / "metadata.json").write_text(
             json.dumps(_metadata(records, prerequisites_info), indent=2), encoding="utf-8"
         )

@@ -1,6 +1,9 @@
 """Public command-line checks for coverage diagnostics."""
 
+import json
+import os
 import subprocess
+import sys
 from importlib.util import module_from_spec, spec_from_file_location
 from pathlib import Path
 
@@ -53,6 +56,55 @@ def test_output_directory_must_be_outside_repository() -> None:
 
     assert result.returncode != 0
     assert not output_dir.exists()
+
+
+def test_missing_coverage_is_reported_in_console_and_saved_evidence(tmp_path: Path) -> None:
+    environment_dir = tmp_path / "without-coverage"
+    subprocess.run(
+        [sys.executable, "-m", "venv", "--without-pip", str(environment_dir)], check=True
+    )
+    python = environment_dir / "bin" / "python"
+    output = tmp_path / "evidence"
+    result = subprocess.run(
+        [str(python), "-m", "tools.coverage_diagnostics.runner", "--output-dir", str(output)],
+        cwd=REPOSITORY,
+        env=os.environ | {"UV_PROJECT_ENVIRONMENT": str(environment_dir), "UV_NO_SYNC": "1"},
+        capture_output=True,
+        text=True,
+        check=False,
+    )
+
+    assert result.returncode == 1
+    assert "No module named coverage" in result.stderr
+    failure = json.loads((output / "metadata.json").read_text())["failures"][0]
+    assert failure["exit_code"] == 1
+    assert failure["command"] == [str(python), "-m", "coverage", "--version"]
+    assert "No module named coverage" in (output / failure["log"]).read_text()
+
+
+def test_diagnostics_keeps_active_python_when_uv_environment_is_empty(tmp_path: Path) -> None:
+    output = tmp_path / "evidence"
+    empty_environment = tmp_path / "empty-uv-environment"
+    environment = os.environ | {
+        "UV_PROJECT_ENVIRONMENT": str(empty_environment),
+        "UV_NO_SYNC": "1",
+        "PYTEST_ADDOPTS": "--invalid-diagnostics-probe-option",
+    }
+
+    result = subprocess.run(
+        [str(RUNNER), "--output-dir", str(output)],
+        env=environment,
+        capture_output=True,
+        text=True,
+        check=False,
+    )
+
+    assert result.returncode == 1
+    metadata = json.loads((output / "metadata.json").read_text())
+    assert metadata["tool_versions"]["exit_code"] == 0
+    assert metadata["failures"][0]["exit_code"] == 4
+    assert "--invalid-diagnostics-probe-option" in (output / "line-suite.log").read_text()
+    assert not empty_environment.exists()
 
 
 def test_summary_groups_sources_into_named_subsystems() -> None:

@@ -187,9 +187,14 @@ quality gate and do not enforce a percentage threshold. Create a new evidence
 directory outside the checkout for each run:
 
 ```bash
-evidence="$(mktemp -d)"
-nix develop -c scripts/coverage-diagnostics --output-dir "$evidence"
+evidence_parent="$(mktemp -d)"
+nix develop -c scripts/coverage-diagnostics --output-dir "$evidence_parent/coverage"
 ```
+
+The runner uses the active development Python for every measurement command;
+it does not create or synchronize another environment. If the coverage
+prerequisite fails, its error is printed to stderr and its command, exit status,
+captured streams, and log are retained in the evidence.
 
 The runner keeps line and branch measurements in separate datasets, reports
 coverage by analyzer subsystem, and runs a separate acceptance-only child-process
