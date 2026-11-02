@@ -180,6 +180,36 @@ Separate line and branch reports by subsystem, state instrumentation limits, and
 verify child-process collection before claiming subprocess coverage.
 See [coverage configuration](https://coverage.readthedocs.io/en/latest/config.html).
 
+### Collect local coverage diagnostics
+
+Coverage diagnostics are an opt-in measurement workflow; they do not replace the
+quality gate and do not enforce a percentage threshold. Create a new evidence
+directory outside the checkout for each run:
+
+```bash
+evidence_parent="$(mktemp -d)"
+nix develop -c scripts/coverage-diagnostics --output-dir "$evidence_parent/coverage"
+```
+
+The runner uses the active development Python for every measurement command;
+it does not create or synchronize another environment. If the coverage
+prerequisite fails, its error is printed to stderr and its command, exit status,
+captured streams, and log are retained in the evidence.
+
+The runner keeps line and branch measurements in separate datasets, reports
+coverage by analyzer subsystem, and runs a separate acceptance-only child-process
+proof before combining its data. Inspect the generated reports and metadata in the
+selected directory together: they identify the measurement mode, test outcome,
+and limitations rather than reducing coverage to one score. Keep failed or
+unavailable proof visible in the evidence.
+
+This workflow measures Python execution only. Native parser/tool components and
+template rendering are not measured by Python coverage; protect their behavior
+with contract and rendering tests. Packaged-artifact acceptance remains a separate
+un-instrumented workflow, so development-environment measurements do not claim
+package coverage. Do not mix evidence from different revisions or reuse a prior
+output directory.
+
 ### Hypothesis profiles
 
 | Profile | Examples | Generation | Intended use |

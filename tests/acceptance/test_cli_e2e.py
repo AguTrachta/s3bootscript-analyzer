@@ -53,7 +53,7 @@ def _executable(record_testsuite_property: Callable[[str, object], None]) -> Pat
 def _environment(directory: Path) -> dict[str, str]:
     (directory / "home").mkdir()
     (directory / "empty-bin").mkdir()
-    return {
+    environment = {
         "HOME": str(directory / "home"),
         "TMPDIR": str(directory),
         "LC_ALL": "C",
@@ -65,6 +65,20 @@ def _environment(directory: Path) -> dict[str, str]:
         },
         "artifact": {"PATH": str(directory / "empty-bin")},
     }[os.environ.get("S3_ACCEPTANCE_MODE", "development")]
+    if os.environ.get("S3_ACCEPTANCE_MODE", "development") == "development":
+        environment.update(
+            {
+                name: os.environ[name]
+                for name in ("COVERAGE_RCFILE", "COVERAGE_FILE")
+                if name in os.environ
+            }
+        )
+        child_coverage_config = os.environ.get("S3_ACCEPTANCE_CHILD_COVERAGE_START")
+        if child_coverage_config:
+            environment.pop("COVERAGE_RCFILE", None)
+            environment.pop("COVERAGE_FILE", None)
+            environment["COVERAGE_PROCESS_START"] = child_coverage_config
+    return environment
 
 
 @pytest.fixture(name="run_cli")
