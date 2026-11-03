@@ -18,6 +18,7 @@ from s3bootscript_analyzer.analysis import (
     RuleDefinition,
     RuleExecutionError,
     Severity,
+    SimpleEvalConditionEvaluator,
 )
 from s3bootscript_analyzer.extensions import AnalysisDocument, AnalysisPlugin
 from s3bootscript_analyzer.ingest import BinarySource
@@ -77,6 +78,19 @@ class StaticConditionEvaluator(ConditionEvaluator):
         return self._result
 
 
+class RuleEvidencePlugin(StaticPlugin):
+    def __init__(self, matches: Mapping[str, tuple[MatchEvidence, ...]]) -> None:
+        super().__init__()
+        self._matches = matches
+
+    def match(
+        self,
+        _document: AnalysisDocument,
+        rule: RuleDefinition,
+    ) -> tuple[MatchEvidence, ...]:
+        return self._matches[rule.rule_id]
+
+
 def test_engine_matches_evidence_without_an_optional_condition() -> None:
     plugin = StaticPlugin([_evidence()])
 
@@ -110,6 +124,53 @@ def test_engine_filters_evidence_with_the_existing_expression_backend() -> None:
     assert len(evaluator.activations) == 1
 
 
+def test_engine_preserves_only_accepted_candidates_in_source_order() -> None:
+    # Arrange
+    candidates = _candidates(0x1000, 0x2000, 0x3000, 0x4000)
+
+    # Act
+    evaluation = AnalysisEngine(SimpleEvalConditionEvaluator()).evaluate(
+        StaticDocument(),
+        [_rule(condition="ENTRY in [0x2000, 0x4000]")],
+        _profile(),
+        StaticPlugin(candidates),
+    )[0]
+
+    # Assert
+    assert evaluation.outcome is EvaluationOutcome.MATCHED
+    assert evaluation.evidence == (candidates[1], candidates[3])
+    assert evaluation.diagnostics == ()
+
+
+def test_late_candidate_failure_discards_partial_evidence_and_later_rule_matches() -> None:
+    # Arrange
+    candidates = _candidates(0x1000, 0x2000, 0x3000)
+    rules = [
+        _rule(rule_id="first", condition='ENTRY < 0x3000 or record["missing"]'),
+        _rule(rule_id="later"),
+    ]
+
+    # Act
+    evaluations = AnalysisEngine(SimpleEvalConditionEvaluator()).evaluate(
+        StaticDocument(),
+        rules,
+        _profile(),
+        RuleEvidencePlugin({"first": candidates, "later": (candidates[0],)}),
+    )
+
+    # Assert
+    assert [evaluation.rule.rule_id for evaluation in evaluations] == ["first", "later"]
+    assert evaluations[0].outcome is EvaluationOutcome.ERROR
+    assert evaluations[0].evidence == ()
+    assert len(evaluations[0].diagnostics) == 1
+    assert evaluations[0].diagnostics[0].code == "rule_execution_error"
+    assert evaluations[0].diagnostics[0].source == "first"
+    assert "missing" in evaluations[0].diagnostics[0].message
+    assert evaluations[1].outcome is EvaluationOutcome.MATCHED
+    assert evaluations[1].evidence == (candidates[0],)
+    assert evaluations[1].diagnostics == ()
+
+
 def test_engine_reports_unknown_when_required_profile_facts_are_missing() -> None:
     plugin = StaticPlugin([_evidence()])
     rule = _rule(required_fields=("trusted_execution",))
@@ -117,6 +178,8 @@ def test_engine_reports_unknown_when_required_profile_facts_are_missing() -> Non
     evaluations = _engine().evaluate(StaticDocument(), [rule], _profile(), plugin)
 
     assert evaluations[0].outcome is EvaluationOutcome.UNKNOWN
+    assert evaluations[0].rule == rule
+    assert evaluations[0].diagnostics[0].source == rule.rule_id
     assert evaluations[0].diagnostics[0].message.endswith("trusted_execution")
     assert plugin.calls == 0
 
@@ -198,15 +261,17 @@ def test_required_fact_presence_controls_public_analysis_outcome(
 
 def test_engine_skips_disabled_rules_without_calling_plugin() -> None:
     plugin = StaticPlugin([_evidence()])
+    rule = _rule(rule_id="disabled", enabled=False, required_fields=("unavailable",))
 
     evaluations = _engine().evaluate(
         StaticDocument(),
-        [_rule(enabled=False, required_fields=("unavailable",))],
+        [rule],
         _profile(),
         plugin,
     )
 
     assert evaluations[0].outcome is EvaluationOutcome.SKIPPED
+    assert evaluations[0].rule == rule
     assert plugin.calls == 0
 
 
@@ -225,15 +290,31 @@ def test_engine_passes_arbitrary_profile_facts_to_evaluator(facts: dict[str, obj
 
 
 @pytest.mark.parametrize("reserved_name", ["profile", "record"])
-def test_reserved_capture_is_an_error_even_without_a_condition(reserved_name: str) -> None:
+@pytest.mark.parametrize("condition", [None, "True"], ids=["no-condition", "condition"])
+def test_reserved_capture_is_an_error_with_or_without_a_condition(
+    reserved_name: str, condition: str | None
+) -> None:
+    # Arrange
     conflicting = replace(_evidence(), bindings={reserved_name: "capture"})
 
-    evaluations = _engine().evaluate(
-        StaticDocument(), [_rule()], _profile(), StaticPlugin([conflicting])
+    # Act
+    evaluations = AnalysisEngine(SimpleEvalConditionEvaluator()).evaluate(
+        StaticDocument(),
+        [_rule(rule_id="conflict", condition=condition), _rule(rule_id="later")],
+        _profile(),
+        RuleEvidencePlugin({"conflict": (conflicting,), "later": (_evidence(),)}),
     )
 
+    # Assert
     assert evaluations[0].outcome is EvaluationOutcome.ERROR
+    assert evaluations[0].evidence == ()
+    assert len(evaluations[0].diagnostics) == 1
+    assert evaluations[0].diagnostics[0].code == "rule_execution_error"
     assert reserved_name in evaluations[0].diagnostics[0].message
+    assert evaluations[1].rule.rule_id == "later"
+    assert evaluations[1].outcome is EvaluationOutcome.MATCHED
+    assert evaluations[1].evidence == (_evidence(),)
+    assert evaluations[1].diagnostics == ()
 
 
 class FailingConditions(StaticConditionEvaluator):
@@ -333,6 +414,20 @@ def _evidence() -> MatchEvidence:
         semantic_line=1,
         record_index=0,
         opcode_offset=0x0D,
+    )
+
+
+def _candidates(*addresses: int) -> tuple[MatchEvidence, ...]:
+    return tuple(
+        MatchEvidence(
+            bindings={"ENTRY": address},
+            semantic_text=f"call {address:#x}",
+            semantic_line=index + 1,
+            record_index=index,
+            opcode_offset=index,
+            record={"address": address},
+        )
+        for index, address in enumerate(addresses)
     )
 
 

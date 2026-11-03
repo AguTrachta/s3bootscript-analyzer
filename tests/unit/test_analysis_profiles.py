@@ -1,7 +1,7 @@
 """Producer JSON is directly consumable without domain-specific adaptation."""
 
 import json
-from collections.abc import Mapping
+from collections.abc import Callable, Mapping
 from pathlib import Path
 
 import pytest
@@ -19,6 +19,49 @@ from s3bootscript_analyzer.profile_data import (
     ProfileLoadError,
     ProfileRange,
 )
+
+SUPPORTED_NESTING_LIMIT = 64
+
+
+def _object_around(value: object) -> object:
+    return {"nested": value}
+
+
+def _array_around(value: object) -> object:
+    return [value]
+
+
+def _nested_profile(depth: int, wrap: Callable[[object], object]) -> dict[str, object]:
+    value: object = 0
+    for _ in range(depth - 1):
+        value = wrap(value)
+    return {"value": value}
+
+
+@pytest.mark.parametrize("wrap", [_object_around, _array_around], ids=["objects", "arrays"])
+def test_profile_accepts_values_at_the_supported_nesting_limit(
+    wrap: Callable[[object], object],
+) -> None:
+    # Arrange: the root object is depth zero; its leaf is at the declared limit.
+    facts = _nested_profile(SUPPORTED_NESTING_LIMIT, wrap)
+
+    # Act
+    profile = AnalysisProfile(name="boundary", data=facts)
+
+    # Assert
+    profile.require_fields(("value",))
+
+
+@pytest.mark.parametrize("wrap", [_object_around, _array_around], ids=["objects", "arrays"])
+def test_profile_rejects_values_beyond_the_supported_nesting_limit(
+    wrap: Callable[[object], object],
+) -> None:
+    # Arrange
+    facts = _nested_profile(SUPPORTED_NESTING_LIMIT + 1, wrap)
+
+    # Act / Assert: require the reason and limit, not exact presentation.
+    with pytest.raises(ValueError, match=rf"(?i)nesting.*{SUPPORTED_NESTING_LIMIT}"):
+        AnalysisProfile(name="too-deep", data=facts)
 
 
 def test_generated_json_loads_without_conversion_and_preserves_provenance(tmp_path: Path) -> None:
@@ -156,9 +199,17 @@ def test_large_json_integers_keep_their_exact_value(tmp_path: Path) -> None:
     assert profile.data["value"] == 18446744073709551615
 
 
-@pytest.mark.parametrize("value", [object(), {1, 2}, float("nan"), {1: "invalid key"}])
-def test_programmatic_profiles_reject_non_json_values(value: object) -> None:
-    with pytest.raises(ValueError):
+@pytest.mark.parametrize(
+    ("value", "reason"),
+    [
+        pytest.param(object(), r"(?i)unsupported.*\bobject\b", id="unsupported-object"),
+        pytest.param({1, 2}, r"(?i)unsupported.*\bset\b", id="unsupported-set"),
+        pytest.param(float("nan"), r"(?i)finite", id="non-finite-number"),
+        pytest.param({1: "invalid key"}, r"(?i)keys.*strings", id="non-string-key"),
+    ],
+)
+def test_programmatic_profiles_reject_non_json_values(value: object, reason: str) -> None:
+    with pytest.raises(ValueError, match=reason):
         AnalysisProfile(name="test", data={"value": value})
 
 
