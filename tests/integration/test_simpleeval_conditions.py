@@ -1,6 +1,7 @@
 """Outside-in condition stories; the simpleeval adapter is the next production step."""
 
 import json
+import operator
 import shutil
 import struct
 import sys
@@ -9,6 +10,8 @@ from pathlib import Path
 from typing import cast
 
 import pytest
+from hypothesis import example, given
+from hypothesis import strategies as st
 
 from s3bootscript_analyzer import analysis
 from s3bootscript_analyzer.analysis import (
@@ -32,6 +35,8 @@ from s3bootscript_analyzer.profile_data import JsonProfileLoader
 from s3bootscript_analyzer.rules import RuleSource, YamlRuleLoader
 
 PROJECT_ROOT = Path(__file__).resolve().parents[2]
+MAX_UNSIGNED_64 = 2**64 - 1
+EXACT_INTEGERS = st.integers(min_value=0, max_value=MAX_UNSIGNED_64)
 KERNEL_CONDITION = (
     'any([r["name"] == "KERNEL_CODE_RANGE" and r["start"] <= ADDR <= r["end"] '
     'for r in profile["ranges"]])'
@@ -274,6 +279,58 @@ def test_address_comparisons_preserve_exact_integer_values(
 
     # Assert
     assert accepted is expected
+
+
+def _equal_integers(value: int) -> tuple[int, int]:
+    return value, value
+
+
+def _adjacent_integers(value: int) -> tuple[int, int]:
+    return value, value + 1
+
+
+@pytest.mark.property
+@pytest.mark.parametrize(
+    ("symbol", "compare"),
+    [
+        ("==", operator.eq),
+        ("!=", operator.ne),
+        ("<", operator.lt),
+        ("<=", operator.le),
+        (">", operator.gt),
+        (">=", operator.ge),
+    ],
+)
+@given(
+    pair=st.one_of(
+        st.tuples(EXACT_INTEGERS, EXACT_INTEGERS),
+        EXACT_INTEGERS.map(_equal_integers),
+        st.integers(min_value=0, max_value=MAX_UNSIGNED_64 - 1).map(_adjacent_integers),
+    )
+)
+@example(pair=(0, 0))
+@example(pair=(0, 1))
+@example(pair=(1, 0))
+@example(pair=(2**53 - 1, 2**53))
+@example(pair=(2**53, 2**53 + 1))
+@example(pair=(2**53 + 1, 2**53))
+@example(pair=(MAX_UNSIGNED_64 - 1, MAX_UNSIGNED_64))
+@example(pair=(MAX_UNSIGNED_64, MAX_UNSIGNED_64 - 1))
+@example(pair=(MAX_UNSIGNED_64, MAX_UNSIGNED_64))
+def test_integer_decisions_agree_with_exact_comparisons(
+    symbol: str, compare: Callable[[int, int], bool], pair: tuple[int, int]
+) -> None:
+    # Arrange
+    evaluator = _evaluator()
+    profile = AnalysisProfile(name="producer", data={"limit": pair[1]})
+
+    # Act
+    accepted = evaluator.evaluate(
+        evaluator.compile(f'ADDR {symbol} profile["limit"]'), {"ADDR": pair[0]}, profile.data, {}
+    )
+
+    # Assert
+    assert accepted is compare(*pair)
 
 
 def test_later_candidate_cannot_inherit_an_earlier_candidates_capture() -> None:

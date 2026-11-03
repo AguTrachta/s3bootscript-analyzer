@@ -1,9 +1,11 @@
 """Executable behavior contract for the reduced analysis engine."""
 
 from collections.abc import Iterable, Mapping
-from dataclasses import replace
+from dataclasses import dataclass, replace
 
 import pytest
+from hypothesis import example, given
+from hypothesis import strategies as st
 
 from s3bootscript_analyzer.analysis import (
     AnalysisEngine,
@@ -117,6 +119,81 @@ def test_engine_reports_unknown_when_required_profile_facts_are_missing() -> Non
     assert evaluations[0].outcome is EvaluationOutcome.UNKNOWN
     assert evaluations[0].diagnostics[0].message.endswith("trusted_execution")
     assert plugin.calls == 0
+
+
+def _json_values(depth: int) -> st.SearchStrategy[object]:
+    scalars = st.one_of(
+        st.none(),
+        st.booleans(),
+        st.integers(min_value=-(2**64), max_value=2**64 - 1),
+        st.floats(allow_nan=False, allow_infinity=False),
+        st.text(max_size=12),
+    )
+    if depth == 0:
+        return scalars
+    children = _json_values(depth - 1)
+    return st.one_of(
+        scalars,
+        st.lists(children, max_size=4),
+        st.dictionaries(st.text(min_size=1, max_size=12), children, max_size=4),
+    )
+
+
+@dataclass(frozen=True)
+class RequiredProfileCase:
+    required: tuple[str, ...]
+    facts: dict[str, object]
+    removed: str
+
+
+@st.composite
+def _required_profile_case(
+    draw: st.DrawFn,
+) -> RequiredProfileCase:
+    required = tuple(
+        draw(st.lists(st.sampled_from(["fact", "flag", "count", "a.b"]), min_size=1, unique=True))
+    )
+    values = draw(st.lists(_json_values(3), min_size=len(required), max_size=len(required)))
+    facts = dict(zip(required, values, strict=True))
+    facts["a"] = {"b": "nested lookalike is not a literal key"}
+    facts["unrelated"] = draw(_json_values(3))
+    return RequiredProfileCase(required, facts, draw(st.sampled_from(required)))
+
+
+@pytest.mark.property
+@given(case=_required_profile_case())
+@example(case=RequiredProfileCase(("a.b",), {"a.b": False, "a": {"b": True}}, "a.b"))
+@example(case=RequiredProfileCase(("count",), {"count": 0}, "count"))
+@example(case=RequiredProfileCase(("fact",), {"fact": ""}, "fact"))
+@example(case=RequiredProfileCase(("fact",), {"fact": []}, "fact"))
+@example(case=RequiredProfileCase(("fact",), {"fact": {}}, "fact"))
+@example(case=RequiredProfileCase(("fact",), {"fact": None}, "fact"))
+def test_required_fact_presence_controls_public_analysis_outcome(
+    case: RequiredProfileCase,
+) -> None:
+    # Arrange
+    complete = AnalysisProfile(name="complete", data=case.facts)
+    incomplete = AnalysisProfile(
+        name="incomplete",
+        data={key: value for key, value in case.facts.items() if key != case.removed},
+    )
+    rule = _rule(required_fields=case.required)
+
+    # Act
+    present = _engine().evaluate(StaticDocument(), [rule], complete, StaticPlugin([_evidence()]))[0]
+    missing = _engine().evaluate(StaticDocument(), [rule], incomplete, StaticPlugin([_evidence()]))[
+        0
+    ]
+
+    # Assert
+    assert present.outcome is EvaluationOutcome.MATCHED
+    assert present.evidence == (_evidence(),)
+    assert present.diagnostics == ()
+    assert missing.outcome is EvaluationOutcome.UNKNOWN
+    assert missing.evidence == ()
+    assert len(missing.diagnostics) == 1
+    assert missing.diagnostics[0].code == "missing_profile_data"
+    assert missing.diagnostics[0].message.endswith(case.removed)
 
 
 def test_engine_skips_disabled_rules_without_calling_plugin() -> None:
